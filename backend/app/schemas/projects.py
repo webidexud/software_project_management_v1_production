@@ -54,6 +54,7 @@ class ProjectOut(BaseModel):
     minutes_date: Optional[date] = None
     minutes_number: Optional[str] = None
     supervisor_type: Optional[str] = None
+    execution_region: Optional[str] = None
     is_active: bool
     created_at: Optional[datetime] = None
     model_config = {"from_attributes": True}
@@ -90,6 +91,7 @@ class ProjectCreate(BaseModel):
     minutes_date: Optional[date] = None
     minutes_number: Optional[str] = None
     supervisor_type: Optional[str] = 'JEFE_EXTENSION'
+    execution_region: Optional[str] = None
 
 
 class ProjectUpdate(BaseModel):
@@ -120,6 +122,7 @@ class ProjectUpdate(BaseModel):
     minutes_date: Optional[date] = None
     minutes_number: Optional[str] = None
     supervisor_type: Optional[str] = None
+    execution_region: Optional[str] = None
 
 
 class ProjectTypeOut(BaseModel):

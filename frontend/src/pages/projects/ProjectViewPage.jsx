@@ -504,6 +504,13 @@ export default function ProjectViewPage() {
               <Field label="Tipo de proyecto" value={p.type_name} />
               <Field label="Tipo de financiación" value={p.financing_name} />
               <Field label="Modalidad de ejecución" value={p.modality_name} />
+              <Field label="Lugar de ejecución" value={
+                p.execution_region
+                  ? { NACIONAL:'Nacional', INTERNACIONAL:'Internacional', AMAZONIA:'Amazonía',
+                      ANDINA:'Andina', CARIBE:'Caribe', INSULAR:'Insular',
+                      PACIFICA:'Pacífica', ORINOQUIA:'Orinoquía' }[p.execution_region] ?? p.execution_region
+                  : null
+              } />
             </Grid>
           </Section>
 

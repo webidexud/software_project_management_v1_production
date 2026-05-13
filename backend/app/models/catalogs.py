@@ -148,6 +148,7 @@ class Project(Base):
     minutes_date                     = Column(Date)
     minutes_number                   = Column(String(50))
     supervisor_type                  = Column(String(30), default="JEFE_EXTENSION")
+    execution_region                 = Column(String(30))
     # ── Control ──────────────────────────────────────────────────────
     is_active                        = Column(Boolean, default=True)
     created_at                       = Column(DateTime, server_default=func.now())

@@ -136,7 +136,9 @@ const EMPTY = {
   ordering_official_id: '', main_email: '',
   administrative_act: '', secop_link: '', observations: '',
   rup_codes_general_observations: '', session_type: '', minutes_date: '', minutes_number: '',
+  execution_region: '',
 }
+
 
 /* ─── Modal de confirmación de creación ──────────────────────────── */
 function ConfirmCreateModal({ form, cats, onConfirm, onCancel, saving }) {
@@ -279,6 +281,7 @@ export default function ProjectFormPage() {
           rup_codes_general_observations: p.rup_codes_general_observations || '',
           session_type: p.session_type || '', minutes_date: p.minutes_date || '',
           minutes_number: p.minutes_number || '',
+          execution_region: p.execution_region || '',
         })
         setRupCodes(rr.data.map(r => ({
           rup_code_id: r.rup_code_id, rup_code: r.rup_code,
@@ -720,6 +723,19 @@ function SecClasificacion({ form, set, cats }) {
           {cats.modalities.map(m=><option key={m.execution_modality_id} value={m.execution_modality_id}>{m.modality_name}</option>)}
         </Sel>
       </F>
+      <F label="Lugar de ejecución">
+        <Sel value={form.execution_region||''} onChange={v=>set('execution_region',v)}>
+          <option value="">— Seleccionar —</option>
+          <option value="NACIONAL">Nacional</option>
+          <option value="INTERNACIONAL">Internacional</option>
+          <option value="AMAZONIA">Amazonía</option>
+          <option value="ANDINA">Andina</option>
+          <option value="CARIBE">Caribe</option>
+          <option value="INSULAR">Insular</option>
+          <option value="PACIFICA">Pacífica</option>
+          <option value="ORINOQUIA">Orinoquía</option>
+        </Sel>
+      </F>
     </G>
   </>
 }
@@ -1026,11 +1042,10 @@ function SecAdicional({ form, set }) {
   return <>
     <ST icon={Link2} color="#64748B" title="Información adicional"
       subtitle="Datos complementarios, enlaces y observaciones generales"/>
-    <G cols={2}>
+    <G cols={1}>
       <F label="Acto administrativo">
         <TxtInp value={form.administrative_act} onChange={v=>set('administrative_act',v)} max={LIMITS.administrative_act} placeholder="Resolución 001 de 2025"/>
       </F>
-      <div/>
       <F label="Enlace SECOP" span={2}>
         <TxtInp value={form.secop_link} onChange={v=>set('secop_link',v)} max={LIMITS.secop_link} placeholder="https://www.secop.gov.co/..."/>
       </F>
