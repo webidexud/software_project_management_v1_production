@@ -52,17 +52,6 @@ siexud/
 
 Editar `.env` con los datos de tu servidor:
 
-```env
-DB_HOST=10.20.100.8
-DB_PORT=5432
-DB_USER=admin
-DB_PASSWORD=qZVmQxZPE532qu39gGoH7F1DqrbUlW
-DB_NAME=nuevo_siexud
-SECRET_KEY=tu_clave_secreta_de_al_menos_32_caracteres
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=480
-VITE_API_URL=http://localhost/api
-```
 
 > ⚠️ **Importante**: Cambia `SECRET_KEY` por una clave segura en producción.
 
