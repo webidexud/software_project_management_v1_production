@@ -112,6 +112,8 @@ class ProjectUpdate(BaseModel):
     entity_contribution: Optional[Decimal] = None
     beneficiaries_count: Optional[int] = None
     subscription_date: Optional[date] = None
+    start_date: Optional[date]    = None 
+    end_date: Optional[date]    = None
     ordering_official_id: Optional[int] = None
     main_email: Optional[str] = None
     administrative_act: Optional[str] = None

@@ -243,10 +243,15 @@ def build_project_rows(db, proyectos, columns=None):
             'status':     status_cache[p.project_status_id],
             'entity':     entity_cache[p.entity_id],
             'department': dept_cache[p.executing_department_id],
-            'value':      float(p.project_value or 0),
+            'value':                   float(p.project_value or 0),
+            'entity_contribution':     float(p.entity_contribution or 0),       # ← NUEVO
+            'university_contribution': float(p.university_contribution or 0),   # ← NUEVO
+            'benefit_pct':             float(p.institutional_benefit_percentage or 12),  # ← NUEVO
             'start_date': fmt_date(p.start_date),
             'end_date':   fmt_date(p.end_date),
+            'sub_date':   fmt_date(p.subscription_date),                        # ← NUEVO
             'benefit':    float(p.institutional_benefit_value or 0),
+            'supervisor': 'Rector' if p.supervisor_type == 'RECTOR' else 'Jefe de Extensión',  # ← NUEVO
             'email':      p.main_email or '—',
             'act':        p.administrative_act or '—',
         }

@@ -663,11 +663,6 @@ function SecIdentificacion({ form, set, isEdit }) {
   return <>
     <ST icon={FileText} title="Identificación del proyecto"
       subtitle="El número de proyecto se asigna automáticamente al guardar"/>
-    {isEdit && (
-      <div style={{ marginBottom:16, padding:'10px 14px', borderRadius:'var(--radius-md)', background:'rgba(14,165,233,0.06)', border:'1px solid rgba(14,165,233,0.2)', fontSize:12, color:'var(--text-muted)' }}>
-        ℹ️ El <strong>año</strong> del proyecto no es modificable — es la clave de identificación en la base de datos.
-      </div>
-    )}
     <G cols={2}>
       <F label="Año del proyecto" required hint={isEdit ? 'No modificable · clave de BD' : undefined}>
         <input className="input-field" type="number" value={form.project_year}
@@ -865,12 +860,7 @@ function SecFechas({ form, set, isEdit }) {
 
   return <>
     <ST icon={Calendar} color="#F59E0B" title="Fechas y cronograma"
-      subtitle={isEdit ? 'Las fechas contractuales originales no son modificables — registra una prórroga en Modificaciones' : 'La fecha de inicio no puede ser anterior a la suscripción'}/>
-    {isEdit && (
-      <div style={{ marginBottom:16, padding:'10px 14px', borderRadius:'var(--radius-md)', background:'rgba(245,158,11,0.06)', border:'1px solid rgba(245,158,11,0.25)', fontSize:12, color:'var(--text-muted)' }}>
-        🔒 <strong>Fecha de inicio</strong> y <strong>Fecha de fin</strong> son inmutables — fechas originales del contrato.
-      </div>
-    )}
+      subtitle="La fecha de inicio no puede ser anterior a la suscripción"/>
     <p style={{ fontSize:13, fontWeight:700, color:'var(--text-secondary)', marginBottom:12 }}>Cronograma de ejecución</p>
     <G cols={3}>
       <F label="Fecha de suscripción" hint="Fecha de firma del convenio">
@@ -879,18 +869,18 @@ function SecFechas({ form, set, isEdit }) {
       <F label="Fecha de inicio" required hint={isEdit?'No modificable':undefined}>
         <div>
           <input className="input-field" type="date" value={form.start_date||''}
-            onChange={isEdit?undefined:e=>set('start_date',e.target.value)} readOnly={isEdit}
-            min={!isEdit?(form.subscription_date||''):undefined}
-            style={{ borderColor:startErr?'#B91C3C':isEdit?'var(--border-color)':undefined, background:isEdit?'var(--bg-hover)':undefined, cursor:isEdit?'not-allowed':undefined, opacity:isEdit?0.75:1 }}/>
+            onChange={e=>set('start_date',e.target.value)}
+            min={form.subscription_date||''}
+            style={{ borderColor:startErr?'#B91C3C':undefined }}/>
           {startErr&&<p style={{ fontSize:11, color:'#B91C3C', marginTop:4 }}>⚠ No puede ser anterior a la suscripción</p>}
         </div>
       </F>
       <F label="Fecha de fin original" required hint={isEdit?'No modificable':undefined}>
         <div>
           <input className="input-field" type="date" value={form.end_date||''}
-            onChange={isEdit?undefined:e=>set('end_date',e.target.value)} readOnly={isEdit}
-            min={!isEdit?(form.start_date||''):undefined}
-            style={{ borderColor:endErr?'#B91C3C':isEdit?'var(--border-color)':undefined, background:isEdit?'var(--bg-hover)':undefined, cursor:isEdit?'not-allowed':undefined, opacity:isEdit?0.75:1 }}/>
+            onChange={e=>set('end_date',e.target.value)}
+            min={form.start_date||''}
+            style={{ borderColor:endErr?'#B91C3C':undefined }}/>
           {endErr&&<p style={{ fontSize:11, color:'#B91C3C', marginTop:4 }}>⚠ Debe ser posterior al inicio</p>}
         </div>
       </F>

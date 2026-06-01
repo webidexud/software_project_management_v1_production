@@ -1,5 +1,6 @@
 # backend/app/api/v1/router.py — v4.5
 from fastapi import APIRouter
+from app.api.v1.endpoints import public_api
 from app.api.v1.endpoints import (
     project_emails,
     entities, entity_types, executing_departments,
@@ -26,3 +27,4 @@ api_router.include_router(documents.router)
 api_router.include_router(document_types.router)
 api_router.include_router(reportes.router)
 api_router.include_router(derechos_peticion.router)
+api_router.include_router(public_api.router)

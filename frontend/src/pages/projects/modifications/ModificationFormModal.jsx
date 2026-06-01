@@ -295,7 +295,7 @@ function DesglosAportes({ form, set, project, prevMods = [] }) {
   return <>
     <ST text="Desglose de la Adición" color="#059669"/>
     <G cols={2}>
-      <F label="Aporte Entidad en esta adición" hint="Parte que aporta la entidad contratante">
+      <F label="Aporte Entidad en esta adición" hint="Se calcula automáticamente: Adición − Aporte Universidad">
         <PesosInput value={form.entity_contribution_addition}
           onChange={v => set('entity_contribution_addition', v)}
           placeholder="0"/>
@@ -428,8 +428,14 @@ function SecProrrhoga({ form, set, project, prevMods = [] }) {
       <F label="Fecha fin actual" hint="Del proyecto (acumulada)">
         <Inp value={currentEnd} disabled/>
       </F>
-      <F label="Nueva fecha de fin" required>
-        <Inp type="date" value={form.new_end_date} onChange={v=>set('new_end_date',v)} min={currentEnd}/>
+      <F label="Días a prorrogar" hint="Se calcula solo si ingresas la fecha — o ingresa los días y la fecha se calcula">
+        <input className="input-field" type="number" min="1"
+          value={form.extension_days||''} placeholder="Ej: 90"
+          onChange={e => set('extension_days', e.target.value)}/>
+      </F>
+      <F label="Nueva fecha de fin" required hint="Se calcula sola si ingresas los días — o selecciona la fecha directamente">
+        <input className="input-field" type="date" value={form.new_end_date||''}
+          onChange={e => set('new_end_date', e.target.value)} min={currentEnd||''}/>
       </F>
       <F label="Días de prórroga" hint="Calculado automáticamente">
         <Inp value={days>0?`${days} días`:''} disabled/>
@@ -670,6 +676,8 @@ export default function ModificationFormModal({ onClose, project, prevMods=[], s
   const set = useCallback((k, v) => {
     setForm(f => {
       const next = { ...f, [k]: v }
+
+      // ── ADICIÓN: nuevo valor total ──────────────────────────────
       if (k === 'addition_value') {
         const base = parseNum(project?.project_value) +
           (prevMods||[]).filter(m=>['ADDITION','BOTH'].includes(m.modification_type)&&m.is_active)
@@ -677,6 +685,53 @@ export default function ModificationFormModal({ onClose, project, prevMods=[], s
         const add = parseNum(v)
         next.new_total_value = add > 0 ? base + add : ''
       }
+
+      // ── ADICIÓN: aporte entidad = adición - aporte universidad ──
+      if (k === 'addition_value') {
+        const add  = parseNum(v)
+        const univ = parseNum(next.university_contribution_addition) || 0
+        next.entity_contribution_addition = add > 0 ? Math.max(0, add - univ) : ''
+      }
+      if (k === 'university_contribution_addition') {
+        const add  = parseNum(next.addition_value) || 0
+        const univ = parseNum(v) || 0
+        next.entity_contribution_addition = add > 0 ? Math.max(0, add - univ) : ''
+      }
+
+      // ── PRÓRROGA: fecha ↔ días bidireccional ─────────────────────
+      // Calcular fecha fin vigente (última prórroga activa o fecha original)
+      const prorrogasAnt = (prevMods||[])
+        .filter(m => ['EXTENSION','BOTH'].includes(m.modification_type) && m.is_active && m.new_end_date)
+        .sort((a,b) => a.modification_number - b.modification_number)
+      const currentEnd = prorrogasAnt.length > 0
+        ? prorrogasAnt[prorrogasAnt.length - 1].new_end_date
+        : project?.end_date
+
+      if (k === 'extension_days' && currentEnd && parseInt(v) > 0) {
+        const base = new Date(currentEnd + 'T00:00:00')
+        base.setDate(base.getDate() + parseInt(v))
+        next.new_end_date = base.toISOString().split('T')[0]
+        // Texto descriptivo
+        const d = parseInt(v)
+        const meses = Math.floor(d / 30), diasR = d % 30
+        next.extension_period_text = meses > 0
+          ? `${meses} mes${meses>1?'es':''} y ${diasR} día${diasR!==1?'s':''}`
+          : `${d} día${d!==1?'s':''}`
+      }
+
+      if (k === 'new_end_date' && currentEnd && v) {
+        const base = new Date(currentEnd + 'T00:00:00')
+        const end  = new Date(v + 'T00:00:00')
+        const dias = Math.round((end - base) / 86400000)
+        if (dias > 0) {
+          next.extension_days = dias
+          const meses = Math.floor(dias / 30), diasR = dias % 30
+          next.extension_period_text = meses > 0
+            ? `${meses} mes${meses>1?'es':''} y ${diasR} día${diasR!==1?'s':''}`
+            : `${dias} día${dias!==1?'s':''}`
+        }
+      }
+
       return next
     })
   }, [project, prevMods])

@@ -376,3 +376,185 @@ h1, h2, h3, h4, h5, h6 {
   [role="navigation"], [role="toolbar"], .btn-primary, .btn-secondary { display: none !important; }
   body { background: white; color: #000; }
 }
+
+/* ─── GRIDS RESPONSIVOS ──────────────────────────────────────────── */
+/* Clases utilitarias para grids en páginas que usan className */
+.grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.grid-2 { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+.grid-1 { display:grid; grid-template-columns:1fr; gap:14px; }
+ 
+@media (max-width: 1023px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 767px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); gap:10px; }
+  .grid-3 { grid-template-columns: 1fr; }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+ 
+/* ─── LAYOUT PRINCIPAL ───────────────────────────────────────────── */
+/* Cuando el sidebar está como overlay, el contenido ocupa todo el ancho */
+@media (max-width: 1023px) {
+  /* El sidebar se gestiona vía JS (position:fixed + transform).
+     El contenido principal toma el 100% del viewport. */
+  #main-content > div {
+    padding: 20px 18px !important;
+    max-width: 100% !important;
+  }
+}
+@media (max-width: 767px) {
+  #main-content > div {
+    padding: 14px !important;
+  }
+}
+ 
+/* ─── TABLAS RESPONSIVE ──────────────────────────────────────────── */
+/* Wrapper para tablas que hace scroll horizontal en mobile */
+.table-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-lg);
+}
+.table-scroll-wrapper table {
+  min-width: 600px; /* mínimo para que las columnas no colapsen */
+}
+ 
+/* En mobile, reducir padding de celdas */
+@media (max-width: 767px) {
+  .table-cell  { padding: 8px 10px !important; font-size: 11px !important; }
+  .table-header{ padding: 7px 10px !important; }
+}
+ 
+/* ─── MODALES ────────────────────────────────────────────────────── */
+/* Los modales ocupan pantalla completa en mobile */
+@media (max-width: 767px) {
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  .modal-container {
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0 !important;
+    max-height: 92vh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+}
+ 
+/* ─── FORMULARIOS ────────────────────────────────────────────────── */
+/* Grids de formularios 2/3 columnas → 1 columna en mobile */
+@media (max-width: 767px) {
+  [style*="grid-template-columns: repeat(2"] {
+    /* No se puede hacer con CSS vars fácilmente en estilos inline.
+       Se maneja desde JS con useBreakpoint. Ver instrucciones abajo. */
+  }
+ 
+  /* Botones en header de páginas — apilan en mobile */
+  .page-header-actions {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .page-header-actions button,
+  .page-header-actions a {
+    flex: 1 1 auto;
+    min-width: 120px;
+    justify-content: center;
+  }
+}
+ 
+/* ─── TOPBAR ─────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* El texto secundario del topbar se oculta (ya se maneja en AppLayout) */
+  header [data-topbar-subtitle] { display: none !important; }
+}
+ 
+/* ─── FILTER BAR ─────────────────────────────────────────────────── */
+/* Los filtros apilan en mobile — ya tienen flexWrap:wrap en estilos
+   inline, pero aquí reforzamos el comportamiento */
+@media (max-width: 767px) {
+  .filter-bar-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .filter-bar-row select,
+  .filter-bar-row input {
+    width: 100% !important;
+    min-width: unset !important;
+  }
+}
+ 
+/* ─── TARJETAS KPI ───────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Valor grande de KPI un poco más pequeño */
+  .kpi-value { font-size: 20px !important; }
+}
+ 
+/* ─── MAPA LEAFLET ───────────────────────────────────────────────── */
+@media (max-width: 1023px) {
+  /* El mapa ocupa todo el ancho cuando el grid colapsa a 1 columna */
+  .leaflet-container { height: 320px !important; }
+}
+@media (max-width: 767px) {
+  .leaflet-container { height: 260px !important; }
+}
+ 
+/* ─── CHAT IA ────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* El chat ocupa toda la pantalla disponible */
+  .chat-container { height: 400px !important; }
+  .chat-input-row { flex-wrap: wrap !important; }
+}
+ 
+/* ─── PÁGINAS FULLSCREEN (ProjectForm, ProjectView, etc.) ────────── */
+/* Estas páginas tienen su propio layout completo (sin AppLayout),
+   necesitan padding propio en mobile */
+@media (max-width: 767px) {
+  .fullscreen-page-header {
+    padding: 10px 14px !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+  .fullscreen-page-header h1 { font-size: 15px !important; }
+  .fullscreen-page-content   { padding: 14px !important; }
+ 
+  /* Botones del header apilan */
+  .fullscreen-page-header .header-actions {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+  }
+  .fullscreen-page-header .header-actions button {
+    justify-content: center !important;
+    font-size: 12px !important;
+    padding: 7px 10px !important;
+  }
+}
+ 
+/* ─── RECHARTS RESPONSIVE ────────────────────────────────────────── */
+/* Las gráficas ya usan ResponsiveContainer — sin cambios necesarios.
+   Solo ajustamos el tamaño del texto en ejes para mobile. */
+@media (max-width: 767px) {
+  .recharts-cartesian-axis-tick text { font-size: 9px !important; }
+}
+ 
+/* ─── SCROLLBAR TOUCH ────────────────────────────────────────────── */
+@media (max-width: 1023px) {
+  /* Scrollbar más ancho para touch */
+  ::-webkit-scrollbar       { width: 4px; height: 4px; }
+}
+ 
+/* ─── TEXTO RESPONSIVE ───────────────────────────────────────────── */
+@media (max-width: 767px) {
+  h1 { font-size: 1.1rem !important; }
+  h2 { font-size: 1rem   !important; }
+}
+ 
+/* ─── SAFE AREA (iPhone notch) ───────────────────────────────────── */
+@supports (padding: env(safe-area-inset-bottom)) {
+  #main-content {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
