@@ -516,7 +516,7 @@ function PlazosTrazabilidad({ p, mods }) {
         <>
           <div style={{ height: 1, background: 'var(--border-color)', margin: '18px 0 14px' }} />
           <Grid cols={2}>
-            <Field label="Tipo de supervisor" value={p.supervisor_type === 'JEFE_EXTENSION' ? 'Jefe de Extensión' : 'Rector'} />
+            <Field label="Funcionario ordenador del gasto" value={p.supervisor_type === 'JEFE_EXTENSION' ? 'Jefe de la Oficina de Extensión' : 'Rector'} />
           </Grid>
         </>
       )}
@@ -674,7 +674,9 @@ export default function ProjectViewPage() {
               <Field label="Código contable" value={p.accounting_code} mono />
               <Field label="Aporte Universidad" value={fmtMoney(p.university_contribution)} mono />
               <Field label="Aporte Entidad" value={fmtMoney(p.entity_contribution)} mono />
+              {/* ──
               <Field label="% Beneficio institucional" value={fmtPct(p.institutional_benefit_percentage)} />
+              ── */}
               <Field label="Valor beneficio institucional" value={fmtMoney(p.institutional_benefit_value)} mono />
             </Grid>
             {p.beneficiaries_count && (
@@ -704,11 +706,14 @@ export default function ProjectViewPage() {
           <PlazosTrazabilidad p={p} mods={mods} />
 
           {/* ── Actores ── */}
-          <Section icon={Users} color="#0EA5E9" title="Actores del Contrato">
+          <Section icon={Users} color="#0EA5E9" title="Actores del Proyecto">
             <Grid cols={2}>
               <Field label="Entidad contratante" value={p.entity_name} />
               <Field label="Dependencia ejecutora" value={p.department_name} />
-              <Field label="Funcionario ordenador del gasto" value={p.official_name} />
+              <Field label="Funcionario ordenador del gasto" value={
+                p.supervisor_type === 'RECTOR' ? 'Rector' : 'Jefe de la Oficina de Extensión'
+              } />
+              <Field label="Supervisor del Proyecto" value={p.official_name} />
               <Field label="Correo principal" value={p.main_email} />
             </Grid>
             {emails.length > 0 && (

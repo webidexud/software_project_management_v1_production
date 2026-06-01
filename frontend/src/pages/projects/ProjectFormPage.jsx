@@ -933,18 +933,18 @@ function SecActores({ form, set, cats, emails, emailForm, setEmailForm, emailErr
           placeholder="Buscar dependencia..."
           options={cats.departments.map(d=>({ value:d.department_id, label:d.department_name }))}/>
       </F>
-      <F label="Funcionario ordenador del gasto" required hint={`${cats.officials.length} funcionarios activos disponibles`}>
-        <SearchableSelect value={form.ordering_official_id} onChange={v=>set('ordering_official_id',v)}
-          placeholder="Buscar funcionario por nombre o identificación..."
-          options={cats.officials.map(o=>({ value:o.official_id, label:o.full_name, sub:`${o.identification_type} ${o.identification_number}` }))}/>
-      </F>
-    </G>
-    <G cols={1}>
-      <F label="Supervisor del Contrato" required hint="¿Quién supervisa el contrato por parte de la Universidad?">
+      <F label="Funcionario ordenador del gasto" required hint="¿Quién ordena el gasto por parte de la Universidad?">
         <Sel value={form.supervisor_type||'JEFE_EXTENSION'} onChange={v=>set('supervisor_type',v)}>
           <option value="JEFE_EXTENSION">Jefe de la Oficina de Extensión</option>
           <option value="RECTOR">Rector</option>
         </Sel>
+      </F>
+    </G>
+    <G cols={1}>
+      <F label="Supervisor del Proyecto" required hint={`${cats.officials.length} funcionarios activos disponibles`}>
+        <SearchableSelect value={form.ordering_official_id} onChange={v=>set('ordering_official_id',v)}
+          placeholder="Buscar funcionario por nombre o identificación..."
+          options={cats.officials.map(o=>({ value:o.official_id, label:o.full_name, sub:`${o.identification_type} ${o.identification_number}` }))}/>
       </F>
     </G>
 
