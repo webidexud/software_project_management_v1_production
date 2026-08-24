@@ -1,5 +1,8 @@
-// frontend/src/pages/projects/ProjectModificationsPage.jsx — v4.2
-// CORRECCIONES:
+// frontend/src/pages/projects/ProjectModificationsPage.jsx — v4.3
+// CAMBIOS v4.3 (2026-07-15):
+//  - Quitado "Justificación supervisor" del detalle de Suspensión
+//  - Agregada sección "Documento(s) de soporte" en el detalle de cada modificación
+// CAMBIOS v4.2 (histórico):
 //  - Título: usa external_project_number o project_id (no internal_project_number que fue eliminado)
 //  - Fecha fin actual: calcula la última new_end_date activa de prórrogas (acumulativa)
 //  - Valor total: muestra valor base + adiciones
@@ -92,7 +95,7 @@ function ModDetail({ m }) {
         <DGrid cols={3}>
           <DField label="Acto administrativo" value={m.administrative_act} />
           <DField label="Fecha de aprobación" value={fmtDate(m.approval_date)} />
-          <DField label="Estado" value={m.is_active ? 'Activa' : 'Inactiva'} />
+          <DField label="Estado" value={m.is_active ? 'Activa' : 'Inactiva'} color={m.is_active ? '#10B981' : '#94A3B8'} />
         </DGrid>
         {m.justification && <DField label="Justificación" value={m.justification} />}
       </DSection>
@@ -145,10 +148,8 @@ function ModDetail({ m }) {
             <DField label="Reinicio programado" value={fmtDate(m.suspension.planned_restart_date)} />
           </DGrid>
           {m.suspension.actual_restart_date && <DField label="Fecha real de reinicio" value={fmtDate(m.suspension.actual_restart_date)} />}
-          <DGrid cols={2}>
-            <DField label="Justificación contratista" value={m.suspension.contractor_justification} />
-            <DField label="Justificación supervisor" value={m.suspension.supervisor_justification} />
-          </DGrid>
+          {/* CAMBIO v4.3: quitada "Justificación supervisor" */}
+          <DField label="Justificación contratista" value={m.suspension.contractor_justification} />
           <DField label="Estado suspensión" value={m.suspension.suspension_status} />
         </DSection>
       )}
@@ -183,39 +184,23 @@ function ModDetail({ m }) {
             <DField label="ID Cedente" value={`${m.assignment.assignor_id_type} ${m.assignment.assignor_id}`} mono />
             <DField label="Cesionario" value={m.assignment.assignee_name} />
             <DField label="ID Cesionario" value={`${m.assignment.assignee_id_type} ${m.assignment.assignee_id}`} mono />
-            <DField label="Fecha cesión" value={fmtDate(m.assignment.assignment_date)} />
-            <DField label="Fecha firma" value={fmtDate(m.assignment.assignment_signature_date)} />
           </DGrid>
           <DGrid cols={3}>
-            <DField label="Valor a ceder" value={fmtPesos(m.assignment.value_to_assign)} color="#8B5CF6" mono />
-            <DField label="Valor pagado al cedente" value={fmtPesos(m.assignment.value_paid_to_assignor)} mono />
+            <DField label="Fecha cesión" value={fmtDate(m.assignment.assignment_date)} />
+            <DField label="Valor a ceder" value={fmtPesos(m.assignment.value_to_assign)} mono />
             <DField label="Valor pendiente cedente" value={fmtPesos(m.assignment.value_pending_to_assignor)} mono />
           </DGrid>
-          {(m.assignment.cdp || m.assignment.rp) && (
-            <DGrid cols={2}>
-              <DField label="CDP" value={m.assignment.cdp} mono />
-              <DField label="RP" value={m.assignment.rp} mono />
-            </DGrid>
-          )}
-          {m.assignment.guarantee_modification_request && <DField label="Solicitud modificación garantías" value={m.assignment.guarantee_modification_request} />}
         </DSection>
       )}
 
       {m.liquidation && (
-        <DSection title="Liquidación del Contrato" color="#64748B" icon={Shield}>
+        <DSection title="Liquidación" color="#64748B" icon={Shield}>
           <DGrid cols={3}>
-            <DField label="Tipo liquidación" value={m.liquidation.liquidation_type === 'BILATERAL' ? 'Bilateral' : 'Unilateral'} />
-            <DField label="% de ejecución" value={`${m.liquidation.execution_percentage}%`} />
-            <DField label="Fecha de liquidación" value={fmtDate(m.liquidation.liquidation_date)} />
+            <DField label="Tipo" value={m.liquidation.liquidation_type === 'BILATERAL' ? 'Bilateral' : 'Unilateral'} />
+            <DField label="Porcentaje ejecución" value={m.liquidation.execution_percentage ? `${m.liquidation.execution_percentage}%` : null} />
+            <DField label="Fecha liquidación" value={fmtDate(m.liquidation.liquidation_date)} />
           </DGrid>
-          <DGrid cols={2}>
-            <DField label="Valor inicial contrato" value={fmtPesos(m.liquidation.initial_contract_value)} mono />
-            <DField label="Valor final con adiciones" value={fmtPesos(m.liquidation.final_value_with_additions)} mono />
-            <DField label="Valor ejecutado" value={fmtPesos(m.liquidation.executed_value)} color="#10B981" mono />
-            <DField label="Valor pendiente de pago" value={fmtPesos(m.liquidation.pending_payment_value)} mono />
-            <DField label="Valor a liberar" value={fmtPesos(m.liquidation.value_to_release)} color="#EF4444" mono />
-          </DGrid>
-          {(m.liquidation.cdp || m.liquidation.rp) && (
+          {m.liquidation.cdp && (
             <DGrid cols={4}>
               <DField label="CDP" value={m.liquidation.cdp} mono />
               <DField label="Valor CDP" value={fmtPesos(m.liquidation.cdp_value)} mono />
@@ -235,6 +220,23 @@ function ModDetail({ m }) {
           )}
           <DField label="Solicitud liquidación (supervisor)" value={m.liquidation.supervisor_liquidation_request} />
           <DField label="Fecha firma liquidación" value={fmtDate(m.liquidation.liquidation_signature_date)} />
+        </DSection>
+      )}
+
+      {/* NUEVO v4.3 — documento(s) de soporte de esta modificación */}
+      {m.documentos && m.documentos.length > 0 && (
+        <DSection title="Documento(s) de Soporte" color="#64748B" icon={FileText}>
+          {m.documentos.map(doc => (
+            <div key={doc.document_id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', background:'var(--bg-hover)', borderRadius:8, marginBottom:6 }}>
+              <div>
+                <p style={{ margin:0, fontSize:12, fontWeight:600, color:'var(--text-primary)' }}>{doc.document_name}</p>
+                <p style={{ margin:0, fontSize:11, color:'var(--text-muted)' }}>{doc.type_name || 'Documento'} {doc.document_date ? `· ${doc.document_date}` : ''}</p>
+              </div>
+              {doc.file_url && (
+                <a href={doc.file_url} target="_blank" rel="noreferrer" style={{ fontSize:11, fontWeight:700, color:'#0EA5E9' }}>Ver documento</a>
+              )}
+            </div>
+          ))}
         </DSection>
       )}
     </div>
@@ -309,7 +311,7 @@ export default function ProjectModificationsPage() {
     .filter(m => ['ADDITION','BOTH'].includes(m.modification_type))
     .reduce((s, m) => s + (parseFloat(m.addition_value) || 0), 0)
 
-  // ✅ Fecha fin VIGENTE: última new_end_date de prórrogas activas (acumulativa)
+  // Fecha fin VIGENTE: última new_end_date de prórrogas activas (acumulativa)
   const fechaFinVigente = (() => {
     const prorrogas = prevMods
       .filter(m => ['EXTENSION','BOTH'].includes(m.modification_type) && m.new_end_date)
@@ -319,12 +321,12 @@ export default function ProjectModificationsPage() {
       : project?.end_date
   })()
 
-  // ✅ Valor total vigente = valor base + adiciones
+  // Valor total vigente = valor base + adiciones
   const valorVigente = project
     ? parseFloat(project.project_value || 0) + totalAdiciones
     : 0
 
-  // ✅ Identificador del proyecto: external_project_number o project_id
+  // Identificador del proyecto: external_project_number o project_id
   const proyectoLabel = project
     ? `${project.project_year}${project.external_project_number ? ` #${project.external_project_number}` : ''} · #${project.project_id}`
     : '…'
@@ -333,7 +335,7 @@ export default function ProjectModificationsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
 
       {/* ── Topbar ── */}
-      <div style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+      <div style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', padding: '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button onClick={() => navigate(`/projects/${id}/view`)}
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid var(--border-color)', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 13, fontFamily: 'inherit', padding: '7px 12px', borderRadius: 8 }}>
@@ -359,83 +361,68 @@ export default function ProjectModificationsPage() {
             </div>
           </div>
         </div>
-        <button onClick={handleNew} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13 }}>
-          <Plus size={15} /> Nueva Modificación
-        </button>
-      </div>
 
-      {/* ── Resumen financiero y temporal ── */}
-      {!loading && project && (
-        <div style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', padding: '10px 24px', display: 'flex', gap: 28, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <DollarSign size={14} color="#10B981" />
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Total adiciones: <strong style={{ color: '#10B981', fontFamily: 'monospace' }}>{fmtPesos(totalAdiciones)}</strong>
-            </span>
-          </div>
-          {totalAdiciones > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <DollarSign size={14} color="#0F2952" />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Valor vigente: <strong style={{ color: '#0F2952', fontFamily: 'monospace' }}>{fmtPesos(valorVigente)}</strong>
-              </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          {project && (
+            <div style={{ display: 'flex', gap: 16 }}>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ fontSize: 10, color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '.06em' }}>Valor vigente</p>
+                <p style={{ fontSize: 13, fontWeight: 800, color: '#10B981', fontFamily: 'monospace', margin: 0 }}>{fmtPesos(valorVigente)}</p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ fontSize: 10, color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '.06em' }}>Fecha fin vigente</p>
+                <p style={{ fontSize: 13, fontWeight: 800, color: '#0EA5E9', fontFamily: 'monospace', margin: 0 }}>{fmtDate(fechaFinVigente)}</p>
+              </div>
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Clock size={14} color="#0EA5E9" />
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Fecha fin actual: <strong style={{ color: '#0EA5E9' }}>{fmtDate(fechaFinVigente)}</strong>
-            </span>
-          </div>
+          <button onClick={handleNew}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#B91C3C', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', padding: '9px 16px', borderRadius: 8 }}>
+            <Plus size={15} /> Nueva Modificación
+          </button>
         </div>
-      )}
+      </div>
 
-      {/* ── Lista de modificaciones ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', background: 'var(--bg-primary)' }}>
+      {/* ── Contenido ── */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)', fontSize: 14 }}>
-            Cargando modificaciones…
-          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '40px 0' }}>Cargando modificaciones...</p>
         ) : mods.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 60 }}>
-            <GitBranch size={36} color="var(--text-muted)" style={{ marginBottom: 14, opacity: 0.4 }} />
-            <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>No hay modificaciones registradas</p>
-            <button onClick={handleNew} className="btn-primary" style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13 }}>
-              <Plus size={15} /> Agregar primera modificación
-            </button>
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <GitBranch size={40} color="var(--text-muted)" style={{ margin: '0 auto 12px', opacity: 0.4 }} />
+            <p style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 16 }}>Este proyecto no tiene modificaciones registradas.</p>
+            <button onClick={handleNew} className="btn-primary">Crear la primera modificación</button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 900, margin: '0 auto' }}>
             {mods.map(m => {
-              const meta    = TYPE_META[m.modification_type] || { label: m.modification_type, color: '#94A3B8' }
-              const isOpen  = expanded[m.modification_id]
+              const isOpen = !!expanded[m.modification_id]
+              const meta   = TYPE_META[m.modification_type] || { label: m.modification_type, color: '#94A3B8' }
               return (
-                <div key={m.modification_id} style={{ background: 'var(--bg-card)', border: `1px solid ${m.is_active ? 'var(--border-color)' : 'rgba(100,116,139,0.2)'}`, borderRadius: 12, overflow: 'hidden', opacity: m.is_active ? 1 : 0.6 }}>
-                  {/* Cabecera */}
-                  <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: `${meta.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div key={m.modification_id}
+                  style={{
+                    background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                    borderRadius: 12, overflow: 'hidden', opacity: m.is_active ? 1 : 0.6,
+                  }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', flexWrap: 'wrap' }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 8, background: `${meta.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <span style={{ fontSize: 11, fontWeight: 800, color: meta.color }}>#{m.modification_number}</span>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <TypeBadge type={m.modification_type} />
-                        {m.administrative_act && (
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{m.administrative_act}</span>
-                        )}
-                        {!m.is_active && (
-                          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: 'rgba(100,116,139,0.1)', color: '#94A3B8', fontWeight: 700 }}>INACTIVA</span>
-                        )}
+                        {m.administrative_act && <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{m.administrative_act}</span>}
+                        {!m.is_active && <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', background: '#f1f5f9', padding: '2px 7px', borderRadius: 10 }}>INACTIVA</span>}
                       </div>
-                      <div style={{ display: 'flex', gap: 14, marginTop: 4, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 12, marginTop: 3, flexWrap: 'wrap' }}>
                         {m.approval_date && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>📅 {fmtDate(m.approval_date)}</span>}
                         {m.addition_value && <span style={{ fontSize: 11, color: '#10B981', fontFamily: 'monospace', fontWeight: 600 }}>+{fmtPesos(m.addition_value)}</span>}
-                        {m.new_end_date && <span style={{ fontSize: 11, color: '#0EA5E9' }}>→ {fmtDate(m.new_end_date)}{m.extension_days ? ` (+${m.extension_days}d)` : ''}</span>}
+                        {m.new_end_date && <span style={{ fontSize: 11, color: '#0EA5E9' }}>→ {fmtDate(m.new_end_date)}</span>}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                       <button onClick={() => handleEdit(m)} title="Editar"
-                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border-color)', background: 'none', color: '#0EA5E9', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600 }}>
-                        <Pencil size={12} /> Editar
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border-color)', background: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600 }}>
+                        <Pencil size={12}/> Editar
                       </button>
                       <button onClick={() => handleToggle(m)} title={m.is_active ? 'Deshabilitar' : 'Habilitar'}
                         style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border-color)', background: 'none', color: m.is_active ? '#EF4444' : '#10B981', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600 }}>

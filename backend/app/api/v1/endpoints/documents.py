@@ -1,6 +1,8 @@
-# backend/app/api/v1/endpoints/documents.py — v5.0
+# backend/app/api/v1/endpoints/documents.py — v5.1
 # Todas las credenciales y paths vienen de app.core.config.settings
 # No hay valores hardcodeados en este archivo.
+# CAMBIO v5.1: el endpoint de subida acepta un modification_id opcional para
+#              enlazar el documento con una modificación específica del proyecto.
 import os
 import io
 import zipfile
@@ -114,6 +116,7 @@ def doc_to_dict(d: ProjectDocument, db: Session) -> dict:
     return {
         "document_id":          d.document_id,
         "project_id":           d.project_id,
+        "modification_id":      d.modification_id,   # NUEVO v5.1
         "document_number":      d.document_number,
         "document_type_id":     d.document_type_id,
         "type_code":            dt.type_code  if dt else None,
@@ -156,12 +159,13 @@ def list_documents(project_id: int, db: Session = Depends(get_db)):
 
 @router.post("/projects/{project_id}/documents/upload")
 async def upload_document(
-    project_id:    int,
-    file:          UploadFile = File(...),
-    document_date: str        = Form(None),
-    observations:  str        = Form(None),
-    override_type: str        = Form(None),
-    db:            Session    = Depends(get_db),
+    project_id:      int,
+    file:            UploadFile = File(...),
+    document_date:   str        = Form(None),
+    observations:    str        = Form(None),
+    override_type:   str        = Form(None),
+    modification_id: str        = Form(None),   # NUEVO v5.1: opcional, liga el doc a una modificación
+    db:              Session    = Depends(get_db),
 ):
     proj = db.query(Project).filter(Project.project_id == project_id).first()
     if not proj:
@@ -211,6 +215,7 @@ async def upload_document(
         observations=observations,
         document_status='ACTIVE',
         is_active=True,
+        modification_id=int(modification_id) if modification_id else None,  # NUEVO v5.1
     )
     db.add(doc)
     db.commit()

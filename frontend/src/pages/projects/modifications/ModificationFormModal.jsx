@@ -1,23 +1,25 @@
 /**
- * ModificationFormModal.jsx — v4.2
- * FIX PRINCIPAL: SecProrrhoga calcula la fecha fin VIGENTE desde prevMods
- *   (cadena acumulativa: cada prórroga parte desde la new_end_date de la anterior)
- *   En lugar de usar siempre project.end_date (fecha original inmutable).
+ * ModificationFormModal.jsx — v4.3
+ * CAMBIOS v4.3 (2026-07-15):
+ *  - "Acto Administrativo" ahora es editable también en Suspensión (antes bloqueado)
+ *  - Eliminado el campo "Justificación del supervisor" en Suspensión (solo queda
+ *    "Justificación del contratista")
+ *  - Nueva sección "Documento de Soporte" (opcional) disponible para CUALQUIER tipo
+ *    de modificación: archivo PDF + tipo de documento + fecha + observación,
+ *    igual que en la pestaña Documentos. Se sube automáticamente al crear la
+ *    modificación y queda enlazado a ella (modification_id).
  *
- * Ejemplo correcto:
- *   Contrato original → fin: 30-04-2026
- *   Prórroga 1 (+30d) → currentEnd=30-04-2026 → nuevo fin: 30-05-2026
- *   Prórroga 2 (+30d) → currentEnd=30-05-2026 → nuevo fin: 30-06-2026  ✅
- *
- * FIX: Modo BOTH — checkboxes pago/póliza solo aparecen una vez (en SecProrrhoga)
- * FIX: Quitado campo "N° Modificación — Automático"
- * FIX: Quitado `if (!isOpen) return null` — el componente ahora siempre renderiza
- *   cuando es montado (el padre controla el montaje con {modalOpen && ...})
+ * v4.2 (histórico):
+ *  - SecProrrhoga calcula la fecha fin VIGENTE desde prevMods (cadena acumulativa)
+ *  - Modo BOTH: checkboxes pago/póliza solo aparecen una vez (en SecProrrhoga)
+ *  - Quitado campo "N° Modificación — Automático"
+ *  - Quitado `if (!isOpen) return null` — el padre controla el montaje
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { X, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { modificationsService } from '../../../services/projects'
+import { modificationsService, documentsService } from '../../../services/projects'
+import api from '../../../services/api'
 
 /* ─── Tipos ──────────────────────────────────────────────────────── */
 const MOD_TYPES = [
@@ -44,7 +46,8 @@ const EMPTY = {
   modification_description: '',
   requires_resource_liberation: false, cdp_to_release: '', rp_to_release: '', liberation_amount: '',
   suspension_start_date: '', suspension_end_date: '', planned_restart_date: '',
-  contractor_justification: '', supervisor_justification: '',
+  contractor_justification: '',
+  // ELIMINADO v4.3: supervisor_justification
   linked_suspension_id: '', actual_restart_date: '',
   assignor_name: '', assignor_id: '', assignor_id_type: 'CC',
   assignee_name: '', assignee_id: '', assignee_id_type: 'CC',
@@ -87,7 +90,7 @@ function editDataToForm(m) {
     f.suspension_end_date      = m.suspension.suspension_end_date || ''
     f.planned_restart_date     = m.suspension.planned_restart_date || ''
     f.contractor_justification = m.suspension.contractor_justification || ''
-    f.supervisor_justification = m.suspension.supervisor_justification || ''
+    // ELIMINADO v4.3: f.supervisor_justification
   }
   if (m.restart) {
     f.actual_restart_date  = m.restart.actual_restart_date || ''
@@ -101,48 +104,34 @@ function editDataToForm(m) {
     f.liberation_amount            = m.clause.liberation_amount || ''
   }
   if (m.assignment) {
-    f.assignor_name             = m.assignment.assignor_name || ''
-    f.assignor_id               = m.assignment.assignor_id || ''
-    f.assignor_id_type          = m.assignment.assignor_id_type || 'CC'
-    f.assignee_name             = m.assignment.assignee_name || ''
-    f.assignee_id               = m.assignment.assignee_id || ''
-    f.assignee_id_type          = m.assignment.assignee_id_type || 'CC'
-    f.assignment_date           = m.assignment.assignment_date || ''
-    f.assignment_signature_date = m.assignment.assignment_signature_date || ''
-    f.value_to_assign           = m.assignment.value_to_assign || ''
-    f.value_paid_to_assignor    = m.assignment.value_paid_to_assignor || ''
-    f.value_pending_to_assignor = m.assignment.value_pending_to_assignor || ''
-    f.cdp                       = m.assignment.cdp || ''
-    f.rp                        = m.assignment.rp || ''
+    f.assignor_name                = m.assignment.assignor_name || ''
+    f.assignor_id                  = m.assignment.assignor_id || ''
+    f.assignor_id_type             = m.assignment.assignor_id_type || 'CC'
+    f.assignee_name                = m.assignment.assignee_name || ''
+    f.assignee_id                  = m.assignment.assignee_id || ''
+    f.assignee_id_type             = m.assignment.assignee_id_type || 'CC'
+    f.assignment_date              = m.assignment.assignment_date || ''
+    f.assignment_signature_date    = m.assignment.assignment_signature_date || ''
+    f.value_to_assign              = m.assignment.value_to_assign || ''
+    f.value_paid_to_assignor       = m.assignment.value_paid_to_assignor || ''
+    f.value_pending_to_assignor    = m.assignment.value_pending_to_assignor || ''
+    f.cdp                          = m.assignment.cdp || ''
+    f.rp                           = m.assignment.rp || ''
     f.guarantee_modification_request = m.assignment.guarantee_modification_request || ''
   }
   if (m.liquidation) {
-    f.liquidation_type               = m.liquidation.liquidation_type || 'BILATERAL'
-    f.execution_percentage           = m.liquidation.execution_percentage || ''
-    f.executed_value                 = m.liquidation.executed_value || ''
-    f.pending_payment_value          = m.liquidation.pending_payment_value || ''
-    f.value_to_release               = m.liquidation.value_to_release || ''
-    f.initial_contract_value         = m.liquidation.initial_contract_value || ''
-    f.final_value_with_additions     = m.liquidation.final_value_with_additions || ''
-    f.cdp                            = m.liquidation.cdp || ''
-    f.cdp_value                      = m.liquidation.cdp_value || ''
-    f.rp                             = m.liquidation.rp || ''
-    f.rp_value                       = m.liquidation.rp_value || ''
-    f.resolution_number              = m.liquidation.resolution_number || ''
-    f.resolution_date                = m.liquidation.resolution_date || ''
-    f.unilateral_cause               = m.liquidation.unilateral_cause || ''
-    f.cause_analysis                 = m.liquidation.cause_analysis || ''
-    f.liquidation_date               = m.liquidation.liquidation_date || ''
-    f.liquidation_signature_date     = m.liquidation.liquidation_signature_date || ''
-    f.supervisor_liquidation_request = m.liquidation.supervisor_liquidation_request || ''
+    f.liquidation_type                = m.liquidation.liquidation_type || 'BILATERAL'
+    f.liquidation_date                = m.liquidation.liquidation_date || ''
+    f.execution_percentage            = m.liquidation.execution_percentage || ''
+    f.supervisor_liquidation_request  = m.liquidation.supervisor_liquidation_request || ''
   }
   return f
 }
 
-/* ─── Helpers ────────────────────────────────────────────────────── */
+/* ─── Helpers numéricos / fechas ─────────────────────────────────── */
 function parseNum(v) {
-  if (!v && v !== 0) return 0
-  const n = parseFloat(String(v).replace(/[^\d.]/g, ''))
+  if (v === '' || v === null || v === undefined) return 0
+  const n = parseFloat(String(v).replace(/[^\d.-]/g, ''))
   return isNaN(n) ? 0 : n
 }
 function fmtPesos(v) {
@@ -255,7 +244,8 @@ function Checkbox({ checked, onChange, label }) {
 /* ─── Secciones ──────────────────────────────────────────────────── */
 
 function SecGenerales({ form, set, modType }) {
-  const noAct = ['SUSPENSION','RESTART'].includes(modType)
+  // CAMBIO v4.3: antes era ['SUSPENSION','RESTART'] — ahora Suspensión SÍ permite editar el Acto Administrativo
+  const noAct = ['RESTART'].includes(modType)
   return <>
     <ST text="Datos Generales" color="#F59E0B"/>
     <G cols={2}>
@@ -276,7 +266,44 @@ function SecGenerales({ form, set, modType }) {
   </>
 }
 
-/* Solo valor, sin checkboxes — para uso en BOTH */
+/* NUEVO v4.3 — Documento de soporte, opcional, para cualquier tipo de modificación */
+function SecDocumentoSoporte({ file, setFile, docMeta, setDocMeta, docTypes }) {
+  const inputRef = useRef(null)
+  return <>
+    <ST text="Documento de Soporte (opcional)" color="#64748B"/>
+    <InfoBox color="#64748B" text="Puede adjuntar el acto administrativo u otro documento que soporte esta modificación. Quedará disponible tanto aquí como en la pestaña Documentos del proyecto."/>
+    {!file ? (
+      <div onClick={()=>inputRef.current?.click()}
+        style={{ border:'2px dashed var(--border-color)', borderRadius:10, padding:'20px', textAlign:'center', cursor:'pointer', marginBottom:16 }}>
+        <input ref={inputRef} type="file" accept="application/pdf" style={{ display:'none' }}
+          onChange={e=>{ const f=e.target.files?.[0]; if (f) setFile(f) }}/>
+        <p style={{ fontSize:13, color:'var(--text-secondary)', margin:0 }}>Haz clic para seleccionar un PDF (opcional)</p>
+      </div>
+    ) : (
+      <div style={{ background:'var(--bg-hover)', border:'1px solid var(--border-color)', borderRadius:10, padding:'12px 16px', marginBottom:16 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+          <span style={{ fontSize:13, fontWeight:600, color:'var(--text-primary)' }}>{file.name}</span>
+          <button onClick={()=>setFile(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><X size={16}/></button>
+        </div>
+        <G cols={3}>
+          <F label="Tipo de documento">
+            <Sel value={docMeta.type_code} onChange={v=>setDocMeta(m=>({...m,type_code:v}))}>
+              <option value="">— Seleccionar —</option>
+              {(docTypes||[]).map(t=><option key={t.type_code} value={t.type_code}>{t.type_name}</option>)}
+            </Sel>
+          </F>
+          <F label="Fecha del documento">
+            <Inp type="date" value={docMeta.document_date} onChange={v=>setDocMeta(m=>({...m,document_date:v}))}/>
+          </F>
+          <F label="Observación">
+            <Inp value={docMeta.observations} onChange={v=>setDocMeta(m=>({...m,observations:v}))} placeholder="Opcional..."/>
+          </F>
+        </G>
+      </div>
+    )}
+  </>
+}
+
 /* ── Bloque de desglose de aportes (compartido por SecAdicion y SecAdicionSoloValor) ── */
 function DesglosAportes({ form, set, project, prevMods = [] }) {
   // Calcula en tiempo real el beneficio acumulado:
@@ -295,7 +322,7 @@ function DesglosAportes({ form, set, project, prevMods = [] }) {
   return <>
     <ST text="Desglose de la Adición" color="#059669"/>
     <G cols={2}>
-      <F label="Aporte Entidad en esta adición" hint="Se calcula automáticamente: Adición − Aporte Universidad">
+      <F label="Aporte Entidad en esta adición" hint="Parte que aporta la entidad contratante">
         <PesosInput value={form.entity_contribution_addition}
           onChange={v => set('entity_contribution_addition', v)}
           placeholder="0"/>
@@ -394,11 +421,10 @@ function SecAdicion({ form, set, project, prevMods }) {
   </>
 }
 
-/* ✅ FIX PRINCIPAL — fecha fin acumulativa desde prevMods */
+/* Fecha fin acumulativa desde prevMods */
 function SecProrrhoga({ form, set, project, prevMods = [] }) {
   // Busca la última new_end_date de prórrogas activas.
   // Si no hay ninguna, usa la fecha original del contrato.
-  // Así: Prórroga 2 parte desde el fin de Prórroga 1, no desde el contrato original.
   const currentEnd = (() => {
     const anteriores = (prevMods || [])
       .filter(m =>
@@ -428,14 +454,8 @@ function SecProrrhoga({ form, set, project, prevMods = [] }) {
       <F label="Fecha fin actual" hint="Del proyecto (acumulada)">
         <Inp value={currentEnd} disabled/>
       </F>
-      <F label="Días a prorrogar" hint="Se calcula solo si ingresas la fecha — o ingresa los días y la fecha se calcula">
-        <input className="input-field" type="number" min="1"
-          value={form.extension_days||''} placeholder="Ej: 90"
-          onChange={e => set('extension_days', e.target.value)}/>
-      </F>
-      <F label="Nueva fecha de fin" required hint="Se calcula sola si ingresas los días — o selecciona la fecha directamente">
-        <input className="input-field" type="date" value={form.new_end_date||''}
-          onChange={e => set('new_end_date', e.target.value)} min={currentEnd||''}/>
+      <F label="Nueva fecha de fin" required>
+        <Inp type="date" value={form.new_end_date} onChange={v=>set('new_end_date',v)} min={currentEnd}/>
       </F>
       <F label="Días de prórroga" hint="Calculado automáticamente">
         <Inp value={days>0?`${days} días`:''} disabled/>
@@ -496,9 +516,9 @@ function SecSuspension({ form, set }) {
     {form.suspension_start_date && form.suspension_end_date && (
       <InfoBox text={`Período: ${form.suspension_start_date} → ${form.suspension_end_date} | Reinicio: ${restartDate}`} color="#EF4444"/>
     )}
-    <G cols={2}>
+    {/* CAMBIO v4.3: quitada "Justificación del supervisor", ahora ocupa todo el ancho */}
+    <G cols={1}>
       <F label="Justificación del contratista" required><Txt value={form.contractor_justification} onChange={v=>set('contractor_justification',v)} rows={4} placeholder="Razones del contratista..."/></F>
-      <F label="Justificación del supervisor" required><Txt value={form.supervisor_justification} onChange={v=>set('supervisor_justification',v)} rows={4} placeholder="Concepto del supervisor..."/></F>
     </G>
   </>
 }
@@ -553,15 +573,14 @@ function SecCesion({ form, set, modType }) {
         </Sel>
       </F>
     </G>
-    <G cols={2}>
-      <F label="Fecha de cesión" required><Inp type="date" value={form.assignment_date} onChange={v=>set('assignment_date',v)}/></F>
-      <F label="Fecha firma cesión"><Inp type="date" value={form.assignment_signature_date} onChange={v=>set('assignment_signature_date',v)}/></F>
-    </G>
-    <ST text="Valores de la Cesión" color="#8B5CF6"/>
     <G cols={3}>
+      <F label="Fecha de cesión" required><Inp type="date" value={form.assignment_date} onChange={v=>set('assignment_date',v)}/></F>
+      <F label="Fecha firma"><Inp type="date" value={form.assignment_signature_date} onChange={v=>set('assignment_signature_date',v)}/></F>
       <F label="Valor a ceder" required><PesosInput value={form.value_to_assign} onChange={v=>set('value_to_assign',v)}/></F>
+    </G>
+    <G cols={2}>
       <F label="Valor pagado al cedente"><PesosInput value={form.value_paid_to_assignor} onChange={v=>set('value_paid_to_assignor',v)}/></F>
-      <F label="Valor pendiente cedente"><PesosInput value={form.value_pending_to_assignor} onChange={v=>set('value_pending_to_assignor',v)}/></F>
+      <F label="Valor pendiente al cedente"><PesosInput value={form.value_pending_to_assignor} onChange={v=>set('value_pending_to_assignor',v)}/></F>
     </G>
     <G cols={2}>
       <F label="CDP"><Inp value={form.cdp} onChange={v=>set('cdp',v)} placeholder="No. CDP"/></F>
@@ -669,6 +688,15 @@ export default function ModificationFormModal({ onClose, project, prevMods=[], s
   const [form,   setForm]  = useState(() => editData ? editDataToForm(editData) : { ...EMPTY })
   const [saving, setSaving] = useState(false)
 
+  // NUEVO v4.3 — documento de soporte opcional
+  const [supportFile, setSupportFile] = useState(null)
+  const [supportMeta, setSupportMeta] = useState({ type_code:'', document_date:'', observations:'' })
+  const [docTypes,    setDocTypes]    = useState([])
+
+  useEffect(() => {
+    api.get('/document-types/').then(r=>setDocTypes(r.data)).catch(()=>{})
+  }, [])
+
   useEffect(() => {
     setForm(editData ? editDataToForm(editData) : { ...EMPTY })
   }, [editData])
@@ -699,7 +727,6 @@ export default function ModificationFormModal({ onClose, project, prevMods=[], s
       }
 
       // ── PRÓRROGA: fecha ↔ días bidireccional ─────────────────────
-      // Calcular fecha fin vigente (última prórroga activa o fecha original)
       const prorrogasAnt = (prevMods||[])
         .filter(m => ['EXTENSION','BOTH'].includes(m.modification_type) && m.is_active && m.new_end_date)
         .sort((a,b) => a.modification_number - b.modification_number)
@@ -711,7 +738,6 @@ export default function ModificationFormModal({ onClose, project, prevMods=[], s
         const base = new Date(currentEnd + 'T00:00:00')
         base.setDate(base.getDate() + parseInt(v))
         next.new_end_date = base.toISOString().split('T')[0]
-        // Texto descriptivo
         const d = parseInt(v)
         const meses = Math.floor(d / 30), diasR = d % 30
         next.extension_period_text = meses > 0
@@ -749,7 +775,7 @@ export default function ModificationFormModal({ onClose, project, prevMods=[], s
       if (!form.suspension_start_date) { toast.error('Fecha inicio suspensión obligatoria'); return false }
       if (!form.suspension_end_date)   { toast.error('Fecha fin suspensión obligatoria'); return false }
       if (!form.contractor_justification?.trim()) { toast.error('Justificación del contratista obligatoria'); return false }
-      if (!form.supervisor_justification?.trim()) { toast.error('Justificación del supervisor obligatoria'); return false }
+      // ELIMINADO v4.3: validación de justificación del supervisor
     }
     if (modType==='RESTART' && !form.linked_suspension_id) { toast.error('Selecciona la suspensión a reiniciar'); return false }
     if (modType==='RESTART' && !form.actual_restart_date)  { toast.error('La fecha de reinicio es obligatoria'); return false }
@@ -787,18 +813,14 @@ export default function ModificationFormModal({ onClose, project, prevMods=[], s
           policy_update_description: form.requires_policy_update ? form.policy_update_description||null : null,
           payment_method_modification: form.requires_payment_modification ? form.payment_method_modification||null : null,
         }
-        if (modType==='SUSPENSION') payload.suspension = { suspension_start_date: form.suspension_start_date, suspension_end_date: form.suspension_end_date, planned_restart_date: form.planned_restart_date, contractor_justification: form.contractor_justification, supervisor_justification: form.supervisor_justification }
-        if (modType==='CONTRACTUAL') payload.clause = { modification_description: form.modification_description, requires_resource_liberation: form.requires_resource_liberation, cdp_to_release: form.cdp_to_release||null, rp_to_release: form.rp_to_release||null, liberation_amount: parseNum(form.liberation_amount)||null }
-        if (['CESION_CESIONARIA','CESION_CEDENTE'].includes(modType)) payload.assignment = { assignor_name: form.assignor_name, assignor_id: form.assignor_id, assignor_id_type: form.assignor_id_type, assignee_name: form.assignee_name, assignee_id: form.assignee_id, assignee_id_type: form.assignee_id_type, assignment_date: form.assignment_date, assignment_signature_date: form.assignment_signature_date||null, value_to_assign: parseNum(form.value_to_assign), value_paid_to_assignor: parseNum(form.value_paid_to_assignor)||null, value_pending_to_assignor: parseNum(form.value_pending_to_assignor)||null, cdp: form.cdp||null, rp: form.rp||null, guarantee_modification_request: form.guarantee_modification_request||null }
-        if (modType==='LIQUIDATION') payload.liquidation = { liquidation_type: form.liquidation_type, execution_percentage: parseNum(form.execution_percentage), executed_value: parseNum(form.executed_value), pending_payment_value: parseNum(form.pending_payment_value)||null, value_to_release: parseNum(form.value_to_release)||null, cdp: form.cdp||null, cdp_value: parseNum(form.cdp_value)||null, rp: form.rp||null, rp_value: parseNum(form.rp_value)||null, resolution_number: form.resolution_number||null, resolution_date: form.resolution_date||null, unilateral_cause: form.unilateral_cause||null, cause_analysis: form.cause_analysis||null, liquidation_date: form.liquidation_date, liquidation_signature_date: form.liquidation_signature_date||null, supervisor_liquidation_request: form.supervisor_liquidation_request }
         await modificationsService.update(editData.modification_id, payload)
         toast.success('Modificación actualizada ✓')
       } else {
         const payload = {
           modification_type:         modType,
+          administrative_act:        form.administrative_act || null,
           approval_date:             form.approval_date,
-          administrative_act:        form.administrative_act||null,
-          justification:             form.justification||null,
+          justification:             form.justification || null,
           addition_value:                   ['ADDITION','BOTH'].includes(modType) ? parseNum(form.addition_value)||null : null,
           entity_contribution_addition:     ['ADDITION','BOTH'].includes(modType) ? parseNum(form.entity_contribution_addition)||null : null,
           university_contribution_addition: ['ADDITION','BOTH'].includes(modType) ? parseNum(form.university_contribution_addition)||null : null,
@@ -814,7 +836,7 @@ export default function ModificationFormModal({ onClose, project, prevMods=[], s
         const modId = res.data.modification_id
 
         if (modType==='SUSPENSION')
-          await modificationsService.addSuspension(modId, { suspension_start_date: form.suspension_start_date, suspension_end_date: form.suspension_end_date, planned_restart_date: form.planned_restart_date, contractor_justification: form.contractor_justification, supervisor_justification: form.supervisor_justification })
+          await modificationsService.addSuspension(modId, { suspension_start_date: form.suspension_start_date, suspension_end_date: form.suspension_end_date, planned_restart_date: form.planned_restart_date, contractor_justification: form.contractor_justification })
         if (modType==='RESTART' && form.linked_suspension_id)
           await modificationsService.restartSuspension(form.linked_suspension_id, { actual_restart_date: form.actual_restart_date, restart_modification_id: modId })
         if (modType==='CONTRACTUAL')
@@ -824,10 +846,26 @@ export default function ModificationFormModal({ onClose, project, prevMods=[], s
         if (modType==='LIQUIDATION')
           await modificationsService.addLiquidation(modId, { liquidation_type: form.liquidation_type, execution_percentage: parseNum(form.execution_percentage), executed_value: parseNum(form.executed_value), pending_payment_value: parseNum(form.pending_payment_value)||null, value_to_release: parseNum(form.value_to_release)||null, cdp: form.cdp||null, cdp_value: parseNum(form.cdp_value)||null, rp: form.rp||null, rp_value: parseNum(form.rp_value)||null, initial_contract_value: parseNum(form.initial_contract_value), final_value_with_additions: parseNum(form.final_value_with_additions), resolution_number: form.resolution_number||null, resolution_date: form.resolution_date||null, unilateral_cause: form.unilateral_cause||null, cause_analysis: form.cause_analysis||null, liquidation_date: form.liquidation_date, liquidation_signature_date: form.liquidation_signature_date||null, supervisor_liquidation_request: form.supervisor_liquidation_request, additions_summary: (prevMods||[]).filter(m=>['ADDITION','BOTH'].includes(m.modification_type)), extensions_summary: (prevMods||[]).filter(m=>['EXTENSION','BOTH'].includes(m.modification_type)), suspensions_summary: suspensions })
 
+        // NUEVO v4.3 — subir documento de soporte (opcional) enlazado a esta modificación
+        if (supportFile) {
+          const fd = new FormData()
+          fd.append('file', supportFile)
+          fd.append('modification_id', String(modId))
+          if (supportMeta.type_code)     fd.append('override_type', supportMeta.type_code)
+          if (supportMeta.document_date) fd.append('document_date', supportMeta.document_date)
+          if (supportMeta.observations)  fd.append('observations', supportMeta.observations)
+          await documentsService.upload(project.project_id, fd).catch(()=>{
+            toast.error('La modificación se creó, pero el documento no se pudo subir. Puede subirlo luego desde Documentos.')
+          })
+        }
+
         toast.success(`${typeMeta?.label||'Modificación'} creada ✓`)
       }
       setForm({ ...EMPTY })
+      setSupportFile(null)
+      setSupportMeta({ type_code:'', document_date:'', observations:'' })
       onSaved?.()
+      onClose?.()
     } catch (err) {
       console.error(err)
       toast.error(err.response?.data?.detail || 'Error al guardar')
@@ -889,6 +927,8 @@ export default function ModificationFormModal({ onClose, project, prevMods=[], s
             {modType==='RESTART'     && <SecReinicio form={form} set={set} suspensions={suspensions}/>}
             {['CESION_CESIONARIA','CESION_CEDENTE'].includes(modType) && <SecCesion form={form} set={set} modType={modType}/>}
             {modType==='LIQUIDATION' && <SecLiquidacion form={form} set={set} project={project} prevMods={prevMods} suspensions={suspensions}/>}
+            {/* NUEVO v4.3 — documento de soporte, disponible para cualquier tipo */}
+            {!isEdit && <SecDocumentoSoporte file={supportFile} setFile={setSupportFile} docMeta={supportMeta} setDocMeta={setSupportMeta} docTypes={docTypes}/>}
           </>}
         </div>
 

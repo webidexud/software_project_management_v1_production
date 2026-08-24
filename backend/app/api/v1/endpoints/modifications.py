@@ -1,10 +1,14 @@
 """
-backend/app/api/v1/endpoints/modifications.py — v5.0
-CAMBIO: Al crear o editar una adición (ADDITION o BOTH):
+backend/app/api/v1/endpoints/modifications.py — v5.1
+CAMBIO v5.0: Al crear o editar una adición (ADDITION o BOTH):
   - Se aceptan entity_contribution_addition y university_contribution_addition
   - Se calcula automáticamente calculated_benefit_value:
     ((aporte_entidad_original + Σ entity_contribution_addition activas) * 12%) / 112%
   - El valor se guarda en la modificación como historial (NO modifica el proyecto)
+CAMBIO v5.1:
+  - Eliminado supervisor_justification de la suspensión (solo queda contractor_justification)
+  - El detalle de una modificación ahora incluye "documentos": el/los documentos de soporte
+    (tabla project_documents) enlazados a esa modificación vía modification_id
 """
 import json
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,6 +18,7 @@ from datetime import date
 
 from app.db.database import get_db
 from app.models.catalogs import Project
+from app.models.project_document import ProjectDocument
 from app.models.project_modification import (
     ProjectModification,
     ModificationSuspension,
@@ -107,7 +112,7 @@ def enrich_mod_detail(m, db):
             "planned_restart_date":     str(sus.planned_restart_date),
             "actual_restart_date":      str(sus.actual_restart_date) if sus.actual_restart_date else None,
             "contractor_justification": sus.contractor_justification,
-            "supervisor_justification": sus.supervisor_justification,
+            # ELIMINADO v5.1: "supervisor_justification" (ya no existe la columna)
             "entity_supervisor_name":   sus.entity_supervisor_name,
             "entity_supervisor_id":     sus.entity_supervisor_id,
             "suspension_status":        sus.suspension_status,
@@ -174,6 +179,17 @@ def enrich_mod_detail(m, db):
                 "suspension_end_date":   str(linked_sus.suspension_end_date),
             }
 
+    # NUEVO v5.1: documento(s) de soporte de esta modificación
+    docs = db.query(ProjectDocument).filter(
+        ProjectDocument.modification_id == m.modification_id,
+        ProjectDocument.is_active == True,
+    ).order_by(ProjectDocument.document_id).all()
+    if docs:
+        from app.api.v1.endpoints.documents import doc_to_dict
+        base["documentos"] = [doc_to_dict(d, db) for d in docs]
+    else:
+        base["documentos"] = []
+
     return base
 
 
@@ -216,7 +232,7 @@ def create_modification(project_id: int, data: ModificationCreate, db: Session =
 
     mod_num = next_mod_number(db, project_id)
 
-    # ✅ Calcular beneficio acumulado si es adición
+    # Calcular beneficio acumulado si es adición
     benefit = None
     if data.modification_type in ('ADDITION', 'BOTH'):
         # Sumar aportes entidad de adiciones activas ya existentes
@@ -283,7 +299,7 @@ def update_modification(mod_id: int, data: dict, db: Session = Depends(get_db)):
                 val = dt_date.fromisoformat(val)
             setattr(m, field, val)
 
-    # ✅ Recalcular beneficio si es adición
+    # Recalcular beneficio si es adición
     if m.modification_type in ('ADDITION', 'BOTH'):
         proj = db.query(Project).filter(Project.project_id == m.project_id).first()
         if proj:
@@ -365,7 +381,7 @@ def add_suspension(mod_id: int, data: SuspensionCreate, db: Session = Depends(ge
         suspension_end_date=data.suspension_end_date,
         planned_restart_date=data.planned_restart_date,
         contractor_justification=data.contractor_justification,
-        supervisor_justification=data.supervisor_justification,
+        # ELIMINADO v5.1: supervisor_justification=data.supervisor_justification
         suspension_status='ACTIVE',
     )
     db.add(sus)
