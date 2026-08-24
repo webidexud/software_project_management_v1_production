@@ -1,8 +1,10 @@
-# backend/app/models/project_modification.py — v4.0
-# CAMBIO: Agregadas 3 columnas para desglose de adiciones y beneficio calculado:
+# backend/app/models/project_modification.py — v4.1
+# CAMBIO v4.0: Agregadas 3 columnas para desglose de adiciones y beneficio calculado:
 #   - entity_contribution_addition
 #   - university_contribution_addition
 #   - calculated_benefit_value
+# CAMBIO v4.1: Eliminada la columna supervisor_justification de ModificationSuspension
+#   (solo se conserva contractor_justification).
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date, Text, Numeric, SmallInteger, ForeignKey
 from sqlalchemy.sql import func
 from app.db.database import Base
@@ -43,10 +45,10 @@ class ProjectModification(Base):
     payment_method_modification      = Column(Text)
 
     # ── CDP / RP ─────────────────────────────────────────────────────
-    cdp                              = Column(String(100))
-    cdp_value                        = Column(Numeric(15, 2))
-    rp                               = Column(String(100))
-    rp_value                         = Column(Numeric(15, 2))
+    cdp                               = Column(String(100))
+    cdp_value                         = Column(Numeric(15, 2))
+    rp                                = Column(String(100))
+    rp_value                          = Column(Numeric(15, 2))
 
     # ── Control ──────────────────────────────────────────────────────
     ordering_official_id             = Column(Integer, ForeignKey("ordering_officials.official_id"))
@@ -68,7 +70,7 @@ class ModificationSuspension(Base):
     planned_restart_date      = Column(Date, nullable=False)
     actual_restart_date       = Column(Date)
     contractor_justification  = Column(Text, nullable=False)
-    supervisor_justification  = Column(Text, nullable=False)
+    # ELIMINADO v4.1: supervisor_justification (ya no existe la columna en BD)
     entity_supervisor_name    = Column(String(200))
     entity_supervisor_id      = Column(String(50))
     suspension_status         = Column(String(20), default='ACTIVE')
@@ -122,12 +124,12 @@ class ModificationClauseChange(Base):
     new_clause_text              = Column(Text, nullable=False)
     modification_description     = Column(Text)
     requires_resource_liberation = Column(Boolean, default=False)
-    cdp_to_release               = Column(String(100))
-    rp_to_release                = Column(String(100))
-    liberation_amount            = Column(Numeric(15, 2))
-    created_at                   = Column(DateTime, server_default=func.now())
-    created_by_user_id           = Column(Integer)
-    is_active                    = Column(Boolean, default=True)
+    cdp_to_release                = Column(String(100))
+    rp_to_release                 = Column(String(100))
+    liberation_amount             = Column(Numeric(15, 2))
+    created_at                    = Column(DateTime, server_default=func.now())
+    created_by_user_id            = Column(Integer)
+    is_active                     = Column(Boolean, default=True)
 
 
 class ModificationLiquidation(Base):

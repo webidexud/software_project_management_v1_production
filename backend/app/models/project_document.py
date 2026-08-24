@@ -1,6 +1,9 @@
-# backend/app/models/project_document.py — v2.0
-# CAMBIO: Eliminados project_year e internal_project_number.
-#         Ahora usa project_id (FK a projects.project_id).
+# backend/app/models/project_document.py — v2.1
+# CAMBIO v2.0: Eliminados project_year e internal_project_number.
+#              Ahora usa project_id (FK a projects.project_id).
+# CAMBIO v2.1: Agregado modification_id (FK opcional a project_modifications).
+#              Si el documento es el soporte de una modificación específica,
+#              queda enlazado aquí. NULL = documento general del proyecto.
 from sqlalchemy import Column, Integer, SmallInteger, String, Text, Date, Boolean, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from app.db.database import Base
@@ -22,6 +25,8 @@ class ProjectDocument(Base):
     document_id          = Column(Integer, primary_key=True)
     # CAMBIO: project_id como FK directa (antes: project_year + internal_project_number)
     project_id           = Column(Integer, ForeignKey("projects.project_id"), nullable=False)
+    # NUEVO v2.1: si el documento es el soporte de una modificación, queda enlazado aquí.
+    modification_id       = Column(Integer, ForeignKey("project_modifications.modification_id"), nullable=True)
     document_number      = Column(Integer, nullable=False)
     document_type_id     = Column(Integer, ForeignKey("project_document_types.document_type_id"), nullable=False)
     document_name        = Column(String(200), nullable=False)
@@ -37,9 +42,9 @@ class ProjectDocument(Base):
     signature_date       = Column(Date)
     document_version     = Column(SmallInteger, default=1)
     observations         = Column(Text)
-    is_confidential      = Column(Boolean, default=False)
-    is_active            = Column(Boolean, default=True, nullable=False)
-    created_at           = Column(DateTime, server_default=func.now(), nullable=False)
-    created_by_user_id   = Column(Integer)
-    updated_at           = Column(DateTime)
-    updated_by_user_id   = Column(Integer)
+    is_confidential       = Column(Boolean, default=False)
+    is_active             = Column(Boolean, default=True, nullable=False)
+    created_at            = Column(DateTime, server_default=func.now(), nullable=False)
+    created_by_user_id    = Column(Integer)
+    updated_at            = Column(DateTime)
+    updated_by_user_id    = Column(Integer)

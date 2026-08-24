@@ -1,6 +1,9 @@
-# backend/app/schemas/projects.py — v5.1
+# backend/app/schemas/projects.py — v5.2
 # CAMBIO v5.1: Agregados 3 campos en ModificationCreate para desglose de adiciones:
 #   entity_contribution_addition, university_contribution_addition, calculated_benefit_value
+# CAMBIO v5.2:
+#   - start_date / end_date ya NO son obligatorias al crear un proyecto (ProjectCreate, ProjectOut)
+#   - Eliminado supervisor_justification de SuspensionCreate
 from pydantic import BaseModel
 from typing import Optional, List, Any
 from datetime import datetime, date
@@ -41,8 +44,9 @@ class ProjectOut(BaseModel):
     entity_contribution: Optional[Decimal] = None
     beneficiaries_count: Optional[int] = None
     subscription_date: Optional[date] = None
-    start_date: date
-    end_date: date
+    # CAMBIO v5.2: ya no son obligatorias (antes: start_date: date / end_date: date)
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     ordering_official_id: Optional[int] = None
     official_name: Optional[str] = None
     main_email: Optional[str] = None
@@ -57,6 +61,9 @@ class ProjectOut(BaseModel):
     execution_region: Optional[str] = None
     is_active: bool
     created_at: Optional[datetime] = None
+    created_by_user_id: Optional[int] = None
+    updated_at: Optional[datetime] = None
+    updated_by_user_id: Optional[int] = None
     model_config = {"from_attributes": True}
 
 
@@ -79,8 +86,9 @@ class ProjectCreate(BaseModel):
     entity_contribution: Optional[Decimal] = None
     beneficiaries_count: Optional[int] = None
     subscription_date: Optional[date] = None
-    start_date: date
-    end_date: date
+    # CAMBIO v5.2: ya no son obligatorias (antes: start_date: date / end_date: date)
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     ordering_official_id: int
     main_email: Optional[str] = None
     administrative_act: Optional[str] = None
@@ -112,8 +120,8 @@ class ProjectUpdate(BaseModel):
     entity_contribution: Optional[Decimal] = None
     beneficiaries_count: Optional[int] = None
     subscription_date: Optional[date] = None
-    start_date: Optional[date]    = None 
-    end_date: Optional[date]    = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     ordering_official_id: Optional[int] = None
     main_email: Optional[str] = None
     administrative_act: Optional[str] = None
@@ -125,13 +133,6 @@ class ProjectUpdate(BaseModel):
     minutes_number: Optional[str] = None
     supervisor_type: Optional[str] = None
     execution_region: Optional[str] = None
-
-
-class ProjectTypeOut(BaseModel):
-    project_type_id: int
-    type_name: str
-    is_active: bool
-    model_config = {"from_attributes": True}
 
 
 # ── RUP ──────────────────────────────────────────────────────────────
@@ -229,8 +230,9 @@ class ModificationCreate(BaseModel):
     justification: Optional[str] = None
     # ── Adición ──────────────────────────────────────────────────────
     addition_value: Optional[Decimal] = None
-    entity_contribution_addition: Optional[Decimal] = None        # ← NUEVO
-    university_contribution_addition: Optional[Decimal] = None    # ← NUEVO
+    entity_contribution_addition: Optional[Decimal] = None
+    university_contribution_addition: Optional[Decimal] = None
+    calculated_benefit_value: Optional[Decimal] = None
     # ─────────────────────────────────────────────────────────────────
     extension_days: Optional[int] = None
     new_end_date: Optional[date] = None
@@ -247,7 +249,7 @@ class SuspensionCreate(BaseModel):
     suspension_end_date: date
     planned_restart_date: date
     contractor_justification: str
-    supervisor_justification: str
+    # ELIMINADO v5.2: supervisor_justification (ya no existe en BD ni en el formulario)
     entity_supervisor_name: Optional[str] = None
     entity_supervisor_id: Optional[str] = None
 
