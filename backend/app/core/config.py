@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     http_new_base:    str = "http://200.69.103.17/idexud/siexud/actasproy"
     http_legacy_base: str = "http://siexud.udistrital.edu.co/idexud/siexud/actasproy/upload"
 
+    # ── Compresión automática de PDFs al subirlos ────────────────
+    pdf_compress_enabled:   bool  = True        # False = nunca comprimir
+    pdf_compress_min_bytes: int   = 1_048_576   # solo se intenta en PDFs de más de 1 MB
+    pdf_compress_quality:   str   = "/ebook"    # /screen · /ebook (150 dpi) · /printer (300 dpi) · /prepress
+    pdf_compress_min_gain:  float = 0.10        # reducción mínima (10 %) para quedarse con la versión comprimida
+    pdf_compress_timeout:   int   = 90          # segundos máximos por archivo
+
     # ── Anthropic IA ─────────────────────────────────────────────
     anthropic_api_key: str = ""
 

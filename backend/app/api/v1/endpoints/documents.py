@@ -5,6 +5,7 @@
 #              enlazar el documento con una modificación específica del proyecto.
 import os
 import io
+import asyncio
 import zipfile
 import threading
 import paramiko
@@ -17,6 +18,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.core.config import settings
+from app.core.pdf_compress import compress_pdf
 from app.db.database import get_db
 from app.models.catalogs import Project
 from app.models.project_document import ProjectDocument, ProjectDocumentType
@@ -165,6 +167,7 @@ async def upload_document(
     observations:    str        = Form(None),
     override_type:   str        = Form(None),
     modification_id: str        = Form(None),   # NUEVO v5.1: opcional, liga el doc a una modificación
+    compress:        str        = Form("true"), # NUEVO v5.3: "false" = subir sin comprimir
     db:              Session    = Depends(get_db),
 ):
     proj = db.query(Project).filter(Project.project_id == project_id).first()
@@ -184,7 +187,13 @@ async def upload_document(
     safe_filename = f"{year}_{project_id}_{type_code}_{doc_num}.pdf"
 
     file_bytes = await file.read()
-    file_size  = len(file_bytes)
+
+    # NUEVO v5.3: compresión automática y segura (si algo falla o no mejora, se conserva el original).
+    # Ghostscript corre en un hilo aparte para no bloquear el servidor mientras procesa.
+    do_compress = (compress or "true").strip().lower() not in ("false", "0", "no", "off")
+    comp        = await asyncio.to_thread(compress_pdf, file_bytes, do_compress)
+    file_bytes  = comp.data
+    file_size   = comp.final_size
 
     # 1. Guardar localmente (siempre — respaldo inmediato)
     local_dir  = os.path.join(settings.upload_dir, str(project_id))
@@ -220,7 +229,9 @@ async def upload_document(
     db.add(doc)
     db.commit()
     db.refresh(doc)
-    return doc_to_dict(doc, db)
+    result = doc_to_dict(doc, db)
+    result["compression"] = comp.to_dict()   # NUEVO v5.3: el frontend muestra el resultado al usuario
+    return result
 
 
 @router.get("/documents/{document_id}/download")

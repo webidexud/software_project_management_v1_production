@@ -47,6 +47,11 @@ class ProjectOut(BaseModel):
     # CAMBIO v5.2: ya no son obligatorias (antes: start_date: date / end_date: date)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    # Valores VIGENTES (calculados con las modificaciones activas; no se guardan en BD)
+    current_value: Optional[Decimal] = None        # valor inicial + adiciones activas
+    current_end_date: Optional[date] = None        # última prórroga activa, o end_date
+    additions_total: Optional[Decimal] = None      # suma de adiciones activas
+    extensions_count: Optional[int] = None         # cantidad de prórrogas activas
     ordering_official_id: Optional[int] = None
     official_name: Optional[str] = None
     main_email: Optional[str] = None

@@ -19,8 +19,38 @@ from app.schemas.projects import ProjectOut, ProjectCreate, ProjectUpdate, Proje
 router = APIRouter(prefix="/projects", tags=["Proyectos"])
 
 
+def load_vigentes(db, project_ids=None):
+    """Valor total y fecha fin VIGENTES por proyecto (una sola consulta).
+    Misma regla que public_api / ProjectViewPage:
+      - valor vigente = project_value + suma de addition_value de modificaciones
+        activas tipo ADDITION o BOTH
+      - fecha fin vigente = new_end_date de la última modificación activa tipo
+        EXTENSION o BOTH (por modification_number); si no hay, end_date.
+    Devuelve {project_id: {'additions','extensions','last_end'}}."""
+    from app.models.project_modification import ProjectModification as M
+    q = db.query(M).filter(M.is_active == True)
+    if project_ids is not None:
+        if not project_ids: return {}
+        q = q.filter(M.project_id.in_(project_ids))
+    out = {}
+    for m in q.order_by(M.project_id, M.modification_number).all():
+        d = out.setdefault(m.project_id, {'additions': 0, 'extensions': 0, 'last_end': None})
+        if m.modification_type in ('ADDITION', 'BOTH'):
+            d['additions'] += (m.addition_value or 0)
+        if m.modification_type in ('EXTENSION', 'BOTH') and m.new_end_date:
+            d['extensions'] += 1
+            d['last_end'] = m.new_end_date   # orden ascendente: queda la última
+    return out
+
+
 def enrich(p, ctx):
     item = ProjectOut.model_validate(p)
+    v = (ctx.get('vigentes') or {}).get(p.project_id) or {}
+    adds = v.get('additions') or 0
+    item.additions_total  = adds
+    item.current_value    = (p.project_value or 0) + adds
+    item.current_end_date = v.get('last_end') or p.end_date
+    item.extensions_count = v.get('extensions', 0)
     item.entity_name     = ctx['entities'].get(p.entity_id)
     item.department_name = ctx['departments'].get(p.executing_department_id)
     item.status_name     = ctx['statuses'].get(p.project_status_id, {}).get('name')
@@ -32,8 +62,9 @@ def enrich(p, ctx):
     return item
 
 
-def get_ctx(db):
+def get_ctx(db, project_ids=None):
     return {
+        'vigentes':    load_vigentes(db, project_ids),
         'entities':    {e.entity_id: e.entity_name for e in db.query(Entity).all()},
         'departments': {d.department_id: d.department_name for d in db.query(ExecutingDepartment).all()},
         'statuses':    {s.status_id: {'name': s.status_name, 'color': s.status_color} for s in db.query(ProjectStatus).all()},
@@ -55,7 +86,7 @@ def list_projects(
     if year:        q = q.filter(Project.project_year == year)
     # Ordenar por año desc, luego project_id desc (orden natural de creación)
     rows = q.order_by(Project.project_year.desc(), Project.project_id.desc()).all()
-    ctx = get_ctx(db)
+    ctx = get_ctx(db)   # incluye valores vigentes de todos los proyectos
     return [enrich(p, ctx) for p in rows]
 
 
@@ -63,7 +94,7 @@ def list_projects(
 def get_project(id: int, db: Session = Depends(get_db)):
     p = db.query(Project).filter(Project.project_id == id).first()
     if not p: raise HTTPException(404, "Proyecto no encontrado")
-    return enrich(p, get_ctx(db))
+    return enrich(p, get_ctx(db, [p.project_id]))
 
 
 @router.post("/", response_model=ProjectOut, status_code=201)
@@ -72,7 +103,7 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
     db.add(obj)
     db.commit()
     db.refresh(obj)
-    return enrich(obj, get_ctx(db))
+    return enrich(obj, get_ctx(db, [obj.project_id]))
 
 
 @router.put("/{id}", response_model=ProjectOut)
@@ -97,7 +128,7 @@ def update_project(id: int, data: ProjectUpdate, db: Session = Depends(get_db)):
     except IntegrityError as e:
         db.rollback()
         raise HTTPException(400, "Error de integridad: verifique las fechas y valores del proyecto")
-    return enrich(obj, get_ctx(db))
+    return enrich(obj, get_ctx(db, [obj.project_id]))
 
 
 @router.patch("/{id}/toggle", response_model=ProjectOut)
@@ -107,7 +138,7 @@ def toggle_project(id: int, db: Session = Depends(get_db)):
     obj.is_active = not obj.is_active
     db.commit()
     db.refresh(obj)
-    return enrich(obj, get_ctx(db))
+    return enrich(obj, get_ctx(db, [obj.project_id]))
 
 
 @router.get("/types/all", response_model=List[ProjectTypeOut])
