@@ -299,6 +299,14 @@ function SecDocumentoSoporte({ file, setFile, docMeta, setDocMeta, docTypes }) {
             <Inp value={docMeta.observations} onChange={v=>setDocMeta(m=>({...m,observations:v}))} placeholder="Opcional..."/>
           </F>
         </G>
+        <label style={{ display:'flex', alignItems:'flex-start', gap:8, fontSize:12, color:'var(--text-secondary)', cursor:'pointer', lineHeight:1.4 }}>
+          <input type="checkbox" checked={docMeta.compress !== false}
+            onChange={e=>setDocMeta(m=>({...m,compress:e.target.checked}))} style={{ marginTop:2 }}/>
+          <span>
+            <strong style={{ color:'var(--text-primary)' }}>Comprimir automáticamente si el PDF es pesado</strong> (mayor a 1 MB).
+            Se conserva el texto y las páginas; los PDF con firma digital no se modifican. Se te informará el resultado.
+          </span>
+        </label>
       </div>
     )}
   </>
@@ -854,9 +862,17 @@ export default function ModificationFormModal({ onClose, project, prevMods=[], s
           if (supportMeta.type_code)     fd.append('override_type', supportMeta.type_code)
           if (supportMeta.document_date) fd.append('document_date', supportMeta.document_date)
           if (supportMeta.observations)  fd.append('observations', supportMeta.observations)
-          await documentsService.upload(project.project_id, fd).catch(()=>{
-            toast.error('La modificación se creó, pero el documento no se pudo subir. Puede subirlo luego desde Documentos.')
-          })
+          fd.append('compress', supportMeta.compress === false ? 'false' : 'true')
+          try {
+            const up   = await documentsService.upload(project.project_id, fd)
+            const comp = up.data?.compression
+            // Informar al usuario qué pasó con el archivo (comprimido u original conservado)
+            if (comp?.message) toast(comp.message, { duration: 7000, icon: comp.applied ? '🗜️' : 'ℹ️' })
+          } catch (upErr) {
+            toast.error(upErr.response?.status === 413
+              ? 'La modificación se creó, pero el documento supera el límite de tamaño del servidor (413). Avise al administrador o súbalo luego desde Documentos.'
+              : 'La modificación se creó, pero el documento no se pudo subir. Puede subirlo luego desde Documentos.')
+          }
         }
 
         toast.success(`${typeMeta?.label||'Modificación'} creada ✓`)

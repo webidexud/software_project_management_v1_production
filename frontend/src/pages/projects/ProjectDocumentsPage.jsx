@@ -62,7 +62,7 @@ function TypeBadge({ code }) {
 const IS = { width:'100%', padding:'6px 10px', borderRadius:7, border:'1px solid var(--border-color)', background:'var(--bg-input)', color:'var(--text-primary)', fontSize:11, fontFamily:'inherit', boxSizing:'border-box' }
 
 /* ── Fila en cola de subida ──────────────────────────────────────── */
-function QueueItem({ item, onRemove, onChangeType, onChangeDate, onChangeObs, docTypes }) {
+function QueueItem({ item, onRemove, onChangeType, onChangeDate, onChangeObs, docTypes, compressOn }) {
   const color = getColor(item.detectedType?.type_code)
   return (
     <div style={{ borderRadius:10, border:`1px solid ${item.status==='error'?'#EF444440':item.status==='done'?'#10B98140':'var(--border-color)'}`, background:item.status==='error'?'#EF444408':item.status==='done'?'#10B98108':'var(--bg-hover)', overflow:'hidden' }}>
@@ -78,6 +78,12 @@ function QueueItem({ item, onRemove, onChangeType, onChangeDate, onChangeObs, do
           <p style={{ fontSize:12, fontWeight:600, color:'var(--text-primary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.file.name}</p>
           <p style={{ fontSize:11, color:'var(--text-muted)', marginTop:1 }}>
             {fmtSize(item.file.size)}
+            {item.status==='done' && item.compression?.applied && (
+              <span style={{ color:'#047857', fontWeight:700, marginLeft:6 }}>→ {fmtSize(item.compression.final_size)}</span>
+            )}
+            {item.status==='uploading' && compressOn && item.file.size > 1048576 && (
+              <span style={{ color:'#0EA5E9', marginLeft:8 }}>Subiendo… los PDF pesados se comprimen automáticamente</span>
+            )}
             {item.status==='error' && <span style={{ color:'#EF4444', marginLeft:8 }}>{item.error}</span>}
           </p>
         </div>
@@ -95,6 +101,15 @@ function QueueItem({ item, onRemove, onChangeType, onChangeDate, onChangeObs, do
           </button>
         )}
       </div>
+
+      {/* Resultado de la compresión automática (se muestra al usuario siempre que haya algo que informar) */}
+      {item.status==='done' && item.compression?.message && (
+        <div style={{ display:'flex', alignItems:'flex-start', gap:6, padding:'0 14px 10px 42px', fontSize:11, lineHeight:1.4,
+                      color: item.compression.applied ? '#047857' : '#B45309' }}>
+          {item.compression.applied ? <Archive size={13} style={{ flexShrink:0, marginTop:1 }}/> : <AlertCircle size={13} style={{ flexShrink:0, marginTop:1 }}/>}
+          <span>{item.compression.message}</span>
+        </div>
+      )}
 
       {/* Campos adicionales: fecha y observación */}
       {item.status==='pending' && (
@@ -131,6 +146,7 @@ export default function ProjectDocumentsPage() {
   const [uploading,     setUploading]     = useState(false)
   const [filter,        setFilter]        = useState('')
   const [zipping,       setZipping]       = useState(false)
+  const [compressOn,    setCompressOn]    = useState(true)   // compresión automática de PDF pesados
 
   const loadDocTypes = useCallback(async () => {
     try { const r = await documentsService.types(); setDocTypes(Array.isArray(r.data)?r.data:[]) }
@@ -181,25 +197,34 @@ export default function ProjectDocumentsPage() {
     const pending = queue.filter(i => i.status==='pending')
     if (!pending.length) return
     setUploading(true)
+    let comprimidos = 0, ahorrados = 0
     for (const item of pending) {
       setQueue(p => p.map(i => i.id===item.id ? {...i, status:'uploading'} : i))
       try {
         const fd = new FormData()
         fd.append('file', item.file)
         fd.append('override_type', item.detectedType?.type_code || 'OTRO')
+        fd.append('compress', compressOn ? 'true' : 'false')
         if (item.docDate)    fd.append('document_date', item.docDate)
         if (item.observation) fd.append('observations', item.observation)
-        await documentsService.upload(id, fd)
-        setQueue(p => p.map(i => i.id===item.id ? {...i, status:'done'} : i))
+        const res  = await documentsService.upload(id, fd)
+        const comp = res.data?.compression
+        if (comp?.applied) { comprimidos++; ahorrados += (comp.original_size - comp.final_size) }
+        setQueue(p => p.map(i => i.id===item.id ? {...i, status:'done', compression: comp || null} : i))
       } catch (err) {
-        const msg = err.response?.data?.detail || 'Error al subir'
+        const msg = err.response?.data?.detail
+          || (err.response?.status === 413
+                ? 'El archivo supera el límite de tamaño del servidor (413). Avise al administrador del sistema.'
+                : 'Error al subir')
         setQueue(p => p.map(i => i.id===item.id ? {...i, status:'error', error:msg} : i))
         toast.error(`Error: ${item.file.name}`)
       }
     }
     setUploading(false)
     await loadDocuments()
-    toast.success('Archivos subidos ✓')
+    toast.success(comprimidos > 0
+      ? `Archivos subidos ✓ · ${comprimidos} comprimido${comprimidos>1?'s':''} (ahorro de ${fmtSize(ahorrados)})`
+      : 'Archivos subidos ✓')
   }
 
   /* ── Descargar archivo individual ────────────────────────────── */
@@ -342,12 +367,22 @@ export default function ProjectDocumentsPage() {
                 </button>
               </div>
             </div>
+            {pendingCount>0 && (
+              <label style={{ display:'flex', alignItems:'flex-start', gap:8, padding:'10px 16px', borderBottom:'1px solid var(--border-color)', fontSize:12, color:'var(--text-secondary)', cursor:uploading?'not-allowed':'pointer', lineHeight:1.4 }}>
+                <input type="checkbox" checked={compressOn} disabled={uploading}
+                  onChange={e=>setCompressOn(e.target.checked)} style={{ marginTop:2, cursor:'inherit' }}/>
+                <span>
+                  <strong style={{ color:'var(--text-primary)' }}>Comprimir automáticamente los PDF pesados</strong> (mayores a 1 MB).
+                  Se conserva el texto y las páginas; los PDF con firma digital no se modifican. Al terminar se te indica el resultado de cada archivo.
+                </span>
+              </label>
+            )}
             <div style={{ padding:'10px 12px', display:'flex', flexDirection:'column', gap:8 }}>
               {queue.map(item=>(
                 <QueueItem key={item.id} item={item}
                   onRemove={removeItem} onChangeType={changeType}
                   onChangeDate={changeDate} onChangeObs={changeObs}
-                  docTypes={docTypes}/>
+                  docTypes={docTypes} compressOn={compressOn}/>
               ))}
             </div>
           </div>

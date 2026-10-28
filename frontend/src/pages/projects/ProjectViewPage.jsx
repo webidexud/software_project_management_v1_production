@@ -670,7 +670,7 @@ export default function ProjectViewPage() {
           {/* ── Financiero ── */}
           <Section icon={DollarSign} color="#10B981" title="Información Financiera">
             <Grid cols={2}>
-              <Field label="Valor total del proyecto" value={fmtMoney(p.project_value)} mono />
+              <Field label="Valor inicial suscrito" value={fmtMoney(p.project_value)} mono />
               <Field label="Código contable" value={p.accounting_code} mono />
               <Field label="Aporte Universidad" value={fmtMoney(p.university_contribution)} mono />
               <Field label="Aporte Entidad" value={fmtMoney(p.entity_contribution)} mono />
@@ -748,7 +748,7 @@ export default function ProjectViewPage() {
                 </p>
                 <Grid cols={2}>
                   <Field label="Total adicionado" value={fmtMoney(adicionesActivas)} mono />
-                  <Field label="Valor total vigente" value={fmtMoney(parseFloat(p.project_value || 0) + adicionesActivas)} mono />
+                  <Field label="Valor total del proyecto" value={fmtMoney(parseFloat(p.project_value || 0) + adicionesActivas)} mono />
                 </Grid>
               </div>
             )}

@@ -68,13 +68,15 @@ function matchesSearch(p, q) {
     p.project_name, p.project_purpose, p.entity_name, p.department_name,
     p.status_name, p.modality_name, p.financing_name, p.official_name,
     p.external_project_number, p.main_email, p.administrative_act,
-    String(p.project_id), String(p.project_year), String(p.project_value || ''),
-    p.start_date, p.end_date,
+    String(p.project_id), String(p.project_year), String(p.current_value ?? p.project_value ?? ''), String(p.project_value || ''),
+    p.start_date, p.current_end_date || p.end_date,
   ].filter(Boolean).map(s => String(s).toLowerCase()).join(' ')
 
   if (q.startsWith('$')) {
     const num = q.replace(/[$.,]/g, '')
-    return String(p.project_value || '').replace(/[.,]/g, '').includes(num)
+    const vig = String(p.current_value ?? p.project_value ?? '').replace(/[.,]/g, '')
+    const ini = String(p.project_value || '').replace(/[.,]/g, '')
+    return vig.includes(num) || ini.includes(num)
   }
   return terms.every(t => haystack.includes(t))
 }
@@ -143,7 +145,7 @@ export default function ProjectsPage() {
     const { field, dir } = sortConfig
     if (!field) return 0
     const mul = dir === 'asc' ? 1 : -1
-    const numFields = ['project_value', 'project_year', 'project_id']
+    const numFields = ['current_value', 'project_value', 'project_year', 'project_id']
     if (numFields.includes(field)) {
       return mul * ((parseFloat(a[field]) || 0) - (parseFloat(b[field]) || 0))
     }
@@ -367,7 +369,7 @@ export default function ProjectsPage() {
                       { label: 'Proyecto',    field: 'project_name',  always: true },
                       { label: 'Entidad',     field: 'entity_name',   show: showEntidad },
                       { label: 'Dependencia', field: 'department_name', show: showDependencia },
-                      { label: 'Valor',       field: 'project_value', always: true },
+                      { label: 'Valor total del proyecto', field: 'current_value', always: true },
                       { label: 'Fechas',      field: 'start_date',    show: showFechas },
                       { label: 'Estado',      field: 'status_name',   always: true },
                     ].filter(h => h.always || h.show).map(h => (
@@ -432,15 +434,24 @@ export default function ProjectsPage() {
                       {/* Valor */}
                       <td className="table-cell" style={{ whiteSpace:'nowrap' }}>
                         <span style={{ fontSize:13, fontWeight:700, color:'var(--text-primary)', fontFamily:'monospace' }}>
-                          {fmtMoney(p.project_value)}
+                          {fmtMoney(p.current_value ?? p.project_value)}
                         </span>
+                        {parseFloat(p.additions_total) > 0 && (
+                          <div title="Valor inicial suscrito + adiciones activas"
+                               style={{ fontSize:10, fontWeight:400, color:'var(--text-muted)', fontFamily:'inherit', marginTop:2 }}>
+                            Inicial: {fmtMoney(p.project_value)} · con adiciones
+                          </div>
+                        )}
                       </td>
 
                       {/* Fechas */}
                       {showFechas && (
                         <td className="table-cell" style={{ whiteSpace:'nowrap', fontSize:11, color:'var(--text-muted)' }}>
                           <div>Inicio: {p.start_date || '—'}</div>
-                          <div>Fin: {p.end_date || '—'}</div>
+                          <div title={p.extensions_count > 0 ? 'Fecha de la última prórroga activa' : 'Fecha de fin original'}>
+                            Fin: {p.current_end_date || p.end_date || '—'}
+                            {p.extensions_count > 0 && <span style={{ marginLeft:4, fontSize:10 }}>(con prórroga)</span>}
+                          </div>
                         </td>
                       )}
 
