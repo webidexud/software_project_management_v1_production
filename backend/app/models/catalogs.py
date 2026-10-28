@@ -134,8 +134,8 @@ class Project(Base):
     beneficiaries_count              = Column(Integer)
     # ── Plazos ───────────────────────────────────────────────────────
     subscription_date                = Column(Date)
-    start_date                       = Column(Date, nullable=False)
-    end_date                         = Column(Date, nullable=False)
+    start_date                       = Column(Date, nullable=True)
+    end_date                         = Column(Date, nullable=True)
     # ── Actores ──────────────────────────────────────────────────────
     ordering_official_id             = Column(Integer, ForeignKey("ordering_officials.official_id"))
     main_email                       = Column(String(200))
