@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   FileText, Settings, DollarSign, Calendar, Users,
   Tag, Link2, Save, ArrowLeft, CheckCircle2, AlertCircle,
-  Mail, Plus, Trash2, AlertTriangle
+  Mail, Plus, Trash2, AlertTriangle, UserPlus
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { projectsService, rupService, emailsService } from '../../services/projects'
@@ -115,7 +115,7 @@ const SECTIONS = [
   { id: 'identificacion', label: 'Identificación',  icon: FileText,   required: ['project_name','project_purpose','project_year'] },
   { id: 'clasificacion',  label: 'Clasificación',   icon: Settings,   required: ['project_status_id','project_type_id','financing_type_id','execution_modality_id'] },
   { id: 'financiero',     label: 'Financiero',      icon: DollarSign, required: ['project_value'] },
-  { id: 'fechas',         label: 'Fechas',          icon: Calendar,   required: ['start_date','end_date'] },
+  { id: 'fechas',         label: 'Fechas',          icon: Calendar,   required: [] },
   { id: 'actores',        label: 'Actores',         icon: Users,      required: ['entity_id','executing_department_id','ordering_official_id'] },
   { id: 'rup',            label: 'Códigos RUP',     icon: Tag,        required: [] },
   { id: 'adicional',      label: 'Adicional',       icon: Link2,      required: [] },
@@ -359,11 +359,9 @@ export default function ProjectFormPage() {
       ['clasificacion',  'financing_type_id',        'Tipo de financiación'],
       ['clasificacion',  'execution_modality_id',    'Modalidad de ejecución'],
       ['financiero',     'project_value',            'Valor total del proyecto'],
-      ['fechas',         'start_date',               'Fecha de inicio'],
-      ['fechas',         'end_date',                 'Fecha de fin'],
       ['actores',        'entity_id',                'Entidad contratante'],
       ['actores',        'executing_department_id',  'Dependencia ejecutora'],
-      ['actores',        'ordering_official_id',     'Funcionario ordenador del gasto'],
+      ['actores',        'ordering_official_id',     'Supervisor del Proyecto'],
     ]
     for (const [sec, k, label] of checks) {
       if (!form[k] && form[k] !== 0) {
@@ -586,7 +584,7 @@ export default function ProjectFormPage() {
             {section==='clasificacion'  && <SecClasificacion  form={form} set={set} cats={cats}/>}
             {section==='financiero'     && <SecFinanciero     form={form} set={set} projectId={id} isEdit={isEdit}/>}
             {section==='fechas'         && <SecFechas         form={form} set={set} isEdit={isEdit}/>}
-            {section==='actores'        && <SecActores        form={form} set={set} cats={cats} emails={emails} emailForm={emailForm} setEmailForm={setEmailForm} emailErr={emailErr} addEmail={addEmail} removeEmail={removeEmail} savingEmail={savingEmail} isEdit={isEdit}/>}
+            {section==='actores'        && <SecActores        form={form} set={set} cats={cats} setCats={setCats} emails={emails} emailForm={emailForm} setEmailForm={setEmailForm} emailErr={emailErr} addEmail={addEmail} removeEmail={removeEmail} savingEmail={savingEmail} isEdit={isEdit}/>}
             {section==='rup'            && <SecRup            rupCodes={rupCodes} onChange={setRupCodes} form={form} set={set}/>}
             {section==='adicional'      && <SecAdicional      form={form} set={set}/>}
           </div>
@@ -807,6 +805,58 @@ function SecFinanciero({ form, set, projectId, isEdit }) {
       )}
     </div>
 
+    {/* Nota aclaratoria: el % sobre el total no es el % real del beneficio institucional */}
+    {ent > 0 && benVal > 0 && (() => {
+      const entNeto = ent - benVal
+      const pctSobreEntidadBruta = ((benVal / ent) * 100).toFixed(2)
+      const pctSobreEntidadNeta  = entNeto > 0 ? ((benVal / entNeto) * 100).toFixed(2) : '0.00'
+
+      return (
+        <div style={{ background:'rgba(245,158,11,0.06)', border:'1px solid rgba(245,158,11,0.25)', borderRadius:'var(--radius-lg)', padding:'14px 18px', marginBottom:16 }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'#92400E', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>
+            ⚠️ Cómo leer el % del beneficio institucional
+          </p>
+          <p style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.5, marginBottom:12 }}>
+            El <strong>Aporte Entidad</strong> ya incluye el beneficio institucional dentro de su valor
+            (no se puede calcular el beneficio sobre el valor total, porque el total ya contiene el beneficio).
+            Por eso el % correcto se calcula sobre el <strong>aporte de la entidad</strong>, no sobre el total del proyecto.
+          </p>
+          <div style={{ display:'flex', gap:20, flexWrap:'wrap' }}>
+            <div>
+              <p style={{ fontSize:11, color:'var(--text-muted)', marginBottom:2 }}>% sobre aporte entidad (bruto)</p>
+              <p style={{ fontSize:16, fontWeight:800, color:'#F59E0B', fontFamily:'monospace' }}>{pctSobreEntidadBruta}%</p>
+            </div>
+            <div>
+              <p style={{ fontSize:11, color:'var(--text-muted)', marginBottom:2 }}>% real (sobre aporte entidad neto)</p>
+              <p style={{ fontSize:16, fontWeight:800, color:'#10B981', fontFamily:'monospace' }}>{pctSobreEntidadNeta}%</p>
+            </div>
+          </div>
+
+          {/* Resumen adicional si hay contrapartida de la Universidad */}
+          {univ > 0 && (
+            <div style={{ marginTop:14, paddingTop:14, borderTop:'1px dashed rgba(245,158,11,0.3)' }}>
+              <p style={{ fontSize:11, fontWeight:700, color:'#92400E', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>
+                Resumen con contrapartida
+              </p>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:10 }}>
+                {[
+                  ['Aporte Universidad (contrapartida)',      univ,    '#0EA5E9'],
+                  ['Aporte Entidad (bruto)',                  ent,     '#F59E0B'],
+                  ['Beneficio institucional (incluido)',      benVal,  '#EF4444'],
+                  ['Aporte Entidad neto (real al proyecto)',  entNeto, '#10B981'],
+                ].map(([label, num, color]) => (
+                  <div key={label} style={{ textAlign:'center', padding:'10px 8px', borderRadius:'var(--radius-md)', background:`${color}0D`, border:`1px solid ${color}30` }}>
+                    <p style={{ fontSize:10, color:'var(--text-muted)', marginBottom:4 }}>{label}</p>
+                    <p style={{ fontSize:13, fontWeight:800, color, fontFamily:'monospace' }}>${fmtNum(num)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    })()}
+
     <G cols={1}>
       <F label="N° beneficiarios">
         <input className="input-field" type="number" value={form.beneficiaries_count??''} onChange={e=>set('beneficiaries_count',e.target.value)} min={0} placeholder="0" style={{ maxWidth:200 }}/>
@@ -860,13 +910,13 @@ function SecFechas({ form, set, isEdit }) {
 
   return <>
     <ST icon={Calendar} color="#F59E0B" title="Fechas y cronograma"
-      subtitle="La fecha de inicio no puede ser anterior a la suscripción"/>
+      subtitle="Opcionales al crear el proyecto — se pueden completar después, cuando se firme el acta de inicio"/>
     <p style={{ fontSize:13, fontWeight:700, color:'var(--text-secondary)', marginBottom:12 }}>Cronograma de ejecución</p>
     <G cols={3}>
       <F label="Fecha de suscripción" hint="Fecha de firma del convenio">
         <input className="input-field" type="date" value={form.subscription_date||''} onChange={e=>set('subscription_date',e.target.value)}/>
       </F>
-      <F label="Fecha de inicio" required hint={isEdit?'No modificable':undefined}>
+      <F label="Fecha de inicio" hint={isEdit?'No modificable':'Opcional — puede diligenciarse luego, con el acta de inicio'}>
         <div>
           <input className="input-field" type="date" value={form.start_date||''}
             onChange={e=>set('start_date',e.target.value)}
@@ -875,7 +925,7 @@ function SecFechas({ form, set, isEdit }) {
           {startErr&&<p style={{ fontSize:11, color:'#B91C3C', marginTop:4 }}>⚠ No puede ser anterior a la suscripción</p>}
         </div>
       </F>
-      <F label="Fecha de fin original" required hint={isEdit?'No modificable':undefined}>
+      <F label="Fecha de fin original" hint={isEdit?'No modificable':'Opcional — puede diligenciarse luego, con el acta de inicio'}>
         <div>
           <input className="input-field" type="date" value={form.end_date||''}
             onChange={e=>set('end_date',e.target.value)}
@@ -919,7 +969,39 @@ function SecFechas({ form, set, isEdit }) {
 }
 
 /* ─── Sección 5: Actores ─────────────────────────────────────────── */
-function SecActores({ form, set, cats, emails, emailForm, setEmailForm, emailErr, addEmail, removeEmail, savingEmail, isEdit }) {
+const EMPTY_OFFICIAL = {
+  first_name:'', second_name:'', first_surname:'', second_surname:'',
+  identification_type:'CC', identification_number:'',
+  institutional_email:'', phone:'',
+}
+
+function SecActores({ form, set, cats, setCats, emails, emailForm, setEmailForm, emailErr, addEmail, removeEmail, savingEmail, isEdit }) {
+  const [showNewOfficial, setShowNewOfficial] = useState(false)
+  const [newOfficial,     setNewOfficial]     = useState(EMPTY_OFFICIAL)
+  const [officialErr,     setOfficialErr]     = useState('')
+  const [savingOfficial,  setSavingOfficial]  = useState(false)
+
+  const createOfficial = async () => {
+    if (!newOfficial.first_name.trim() || !newOfficial.first_surname.trim() || !newOfficial.identification_number.trim()) {
+      setOfficialErr('Primer nombre, primer apellido e identificación son obligatorios')
+      return
+    }
+    setOfficialErr('')
+    setSavingOfficial(true)
+    try {
+      const r = await orderingOfficialsService.create(newOfficial)
+      setCats(c => ({ ...c, officials: [...c.officials, r.data] }))
+      set('ordering_official_id', r.data.official_id)
+      setShowNewOfficial(false)
+      setNewOfficial(EMPTY_OFFICIAL)
+      toast.success('Funcionario creado y seleccionado ✓')
+    } catch (e) {
+      setOfficialErr(e.response?.data?.detail || 'Error creando el funcionario')
+    } finally {
+      setSavingOfficial(false)
+    }
+  }
+
   return <>
     <ST icon={Users} color="#B91C3C" title="Actores del proyecto" subtitle="Solo se listan registros activos en cada catálogo"/>
     <G cols={1}>
@@ -945,6 +1027,54 @@ function SecActores({ form, set, cats, emails, emailForm, setEmailForm, emailErr
         <SearchableSelect value={form.ordering_official_id} onChange={v=>set('ordering_official_id',v)}
           placeholder="Buscar funcionario por nombre o identificación..."
           options={cats.officials.map(o=>({ value:o.official_id, label:o.full_name, sub:`${o.identification_type} ${o.identification_number}` }))}/>
+
+        <button type="button" onClick={()=>{ setShowNewOfficial(s=>!s); setOfficialErr('') }}
+          style={{ marginTop:8, display:'flex', alignItems:'center', gap:6, fontSize:12, fontWeight:700, color:'#0EA5E9', background:'rgba(14,165,233,0.08)', border:'1px solid rgba(14,165,233,0.25)', borderRadius:8, padding:'6px 10px', cursor:'pointer', fontFamily:'inherit' }}>
+          <UserPlus size={14}/> {showNewOfficial ? 'Cancelar' : '+ Crear nuevo funcionario'}
+        </button>
+
+        {showNewOfficial && (
+          <div style={{ marginTop:10, padding:'14px 16px', background:'var(--bg-hover)', border:'1px solid var(--border-color)', borderRadius:'var(--radius-lg)' }}>
+            <p style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>
+              Nuevo funcionario (podrá quedar como Supervisor u Ordenador del gasto)
+            </p>
+            <G cols={2}>
+              <F label="Primer nombre" required>
+                <TxtInp value={newOfficial.first_name} onChange={v=>setNewOfficial(f=>({...f,first_name:v}))} placeholder="Robinson"/>
+              </F>
+              <F label="Segundo nombre">
+                <TxtInp value={newOfficial.second_name} onChange={v=>setNewOfficial(f=>({...f,second_name:v}))} placeholder="(opcional)"/>
+              </F>
+              <F label="Primer apellido" required>
+                <TxtInp value={newOfficial.first_surname} onChange={v=>setNewOfficial(f=>({...f,first_surname:v}))} placeholder="Pacheco"/>
+              </F>
+              <F label="Segundo apellido">
+                <TxtInp value={newOfficial.second_surname} onChange={v=>setNewOfficial(f=>({...f,second_surname:v}))} placeholder="García"/>
+              </F>
+              <F label="Tipo de identificación">
+                <Sel value={newOfficial.identification_type} onChange={v=>setNewOfficial(f=>({...f,identification_type:v}))}>
+                  <option value="CC">Cédula de ciudadanía</option>
+                  <option value="CE">Cédula de extranjería</option>
+                  <option value="PA">Pasaporte</option>
+                </Sel>
+              </F>
+              <F label="Número de identificación" required>
+                <TxtInp value={newOfficial.identification_number} onChange={v=>setNewOfficial(f=>({...f,identification_number:v}))} placeholder="79xxxxxx"/>
+              </F>
+              <F label="Correo institucional">
+                <TxtInp type="email" value={newOfficial.institutional_email} onChange={v=>setNewOfficial(f=>({...f,institutional_email:v}))} placeholder="nombre@udistrital.edu.co"/>
+              </F>
+              <F label="Teléfono">
+                <TxtInp value={newOfficial.phone} onChange={v=>setNewOfficial(f=>({...f,phone:v}))} placeholder="3001234567"/>
+              </F>
+            </G>
+            {officialErr && <p style={{ fontSize:12, color:'#B91C3C', marginBottom:8 }}>{officialErr}</p>}
+            <button type="button" onClick={createOfficial} disabled={savingOfficial}
+              className="btn-secondary" style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <Plus size={14}/> {savingOfficial ? 'Guardando...' : 'Guardar y seleccionar'}
+            </button>
+          </div>
+        )}
       </F>
     </G>
 

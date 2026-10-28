@@ -257,8 +257,11 @@ function MapPanel({ filtered, regionCounts, selectedRegion, onToggleRegion, isMo
         <MapContainer
           center={[4.5, -74.5]} zoom={isMobile ? 4 : 5} minZoom={4} maxZoom={8}
           style={{ height: '100%', width: '100%' }}
-          scrollWheelZoom={false} zoomControl attributionControl={false}>
-          <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+          scrollWheelZoom={false} zoomControl attributionControl={true}>
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
 
           {Object.entries(REGION_CENTERS).map(([region, pos]) => {
             const cnt    = regionCounts[region] || 0

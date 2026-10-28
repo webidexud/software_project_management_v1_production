@@ -685,6 +685,61 @@ export default function ProjectViewPage() {
               </Grid>
             )}
 
+            {/* Nota aclaratoria: el % sobre el total no es el % real del beneficio institucional */}
+            {(() => {
+              const ent    = parseFloat(p.entity_contribution) || 0
+              const univ   = parseFloat(p.university_contribution) || 0
+              const benVal = parseFloat(p.institutional_benefit_value) || 0
+              if (ent <= 0 || benVal <= 0) return null
+              const entNeto = ent - benVal
+              const pctSobreEntidadBruta = ((benVal / ent) * 100).toFixed(2)
+              const pctSobreEntidadNeta  = entNeto > 0 ? ((benVal / entNeto) * 100).toFixed(2) : '0.00'
+
+              return (
+                <div style={{ marginTop: 12, background:'rgba(245,158,11,0.06)', border:'1px solid rgba(245,158,11,0.25)', borderRadius:10, padding:'14px 16px' }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                    ⚠️ Cómo leer el % del beneficio institucional
+                  </p>
+                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 12 }}>
+                    El <strong>Aporte Entidad</strong> ya incluye el beneficio institucional dentro de su valor
+                    (no se puede calcular el beneficio sobre el valor total, porque el total ya contiene el beneficio).
+                    Por eso el % correcto se calcula sobre el <strong>aporte de la entidad</strong>, no sobre el total del proyecto.
+                  </p>
+                  <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                    <div>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>% sobre aporte entidad (bruto)</p>
+                      <p style={{ fontSize: 16, fontWeight: 800, color: '#F59E0B', fontFamily: 'monospace' }}>{pctSobreEntidadBruta}%</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>% real (sobre aporte entidad neto)</p>
+                      <p style={{ fontSize: 16, fontWeight: 800, color: '#10B981', fontFamily: 'monospace' }}>{pctSobreEntidadNeta}%</p>
+                    </div>
+                  </div>
+
+                  {univ > 0 && (
+                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px dashed rgba(245,158,11,0.3)' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                        Resumen con contrapartida
+                      </p>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10 }}>
+                        {[
+                          ['Aporte Universidad (contrapartida)',     univ,    '#0EA5E9'],
+                          ['Aporte Entidad (bruto)',                 ent,     '#F59E0B'],
+                          ['Beneficio institucional (incluido)',     benVal,  '#EF4444'],
+                          ['Aporte Entidad neto (real al proyecto)', entNeto, '#10B981'],
+                        ].map(([label, num, color]) => (
+                          <div key={label} style={{ textAlign: 'center', padding: '10px 8px', borderRadius: 8, background: `${color}0D`, border: `1px solid ${color}30` }}>
+                            <p style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>{label}</p>
+                            <p style={{ fontSize: 13, fontWeight: 800, color, fontFamily: 'monospace' }}>{fmtMoney(num)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
             {/* Adiciones activas — resumen */}
             {adicionesActivas > 0 && (
               <div style={{ marginTop: 12, padding: '14px 16px', borderRadius: 10, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.25)' }}>
